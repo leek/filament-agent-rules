@@ -1,7 +1,7 @@
 ---
-description: Filament UI Actions (buttons, modals, bulk, wizard, Importer/Exporter, notifications)
+description: Filament UI Actions — extracted action classes and inline action usage (modals, bulk, wizard, Importer/Exporter, notifications)
 globs:
-  - app/Filament/Actions/**/*.php
+  - app/Filament/**/Actions/*.php
 alwaysApply: false
 ---
 

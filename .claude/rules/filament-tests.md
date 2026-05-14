@@ -2,6 +2,7 @@
 description: Pest + Livewire tests for Filament Resources, Pages, Widgets, Relation Managers
 globs:
   - tests/Feature/Filament/**/*.php
+  - tests/**/Filament/**/*Test.php
 alwaysApply: false
 ---
 

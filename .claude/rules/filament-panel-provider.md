@@ -1,7 +1,7 @@
 ---
 description: PanelProvider configuration (discovery, middleware, tenancy, themes, plugins, v5 panel options)
 globs:
-  - app/Providers/Filament/*PanelProvider.php
+  - app/Providers/Filament/**/*.php
 alwaysApply: false
 ---
 

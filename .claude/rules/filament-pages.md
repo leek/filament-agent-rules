@@ -1,7 +1,7 @@
 ---
-description: Custom panel pages (dashboards, settings, wizards) not tied to a single Resource
+description: Filament pages — custom panel pages AND resource pages (lifecycle, auth, header actions, polling)
 globs:
-  - app/Filament/Pages/**/*.php
+  - app/Filament/**/Pages/*.php
 alwaysApply: false
 ---
 
