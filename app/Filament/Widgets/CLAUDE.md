@@ -83,6 +83,83 @@ final class RevenueChart extends ChartWidget
 - **MUST** use `flowframe/laravel-trend` (or equivalent) for time-series aggregations — never loop dates in PHP.
 - **SHOULD** add `protected static ?string $pollingInterval = '60s';` only on charts that need live data. Otherwise `null` to disable polling.
 
+### Filterable chart widget
+
+For charts that need a user-driven time window, declare `$filter` + `getFilters()` and branch in `getData()`:
+
+```php
+final class RevenueChart extends ChartWidget
+{
+    public ?string $filter = 'week';
+
+    protected function getFilters(): ?array
+    {
+        return [
+            'today' => 'Today',
+            'week'  => 'Last 7 days',
+            'month' => 'This month',
+            'year'  => 'This year',
+        ];
+    }
+
+    protected function getData(): array
+    {
+        return app(BuildRevenueChartData::class)->run($this->filter);
+    }
+
+    protected function getType(): string
+    {
+        return 'line';
+    }
+}
+```
+
+- **MUST** delegate data assembly to an `app/Actions/` class — keep the widget a thin filter→data adapter.
+- **SHOULD** ship sensible defaults: `'week'` is the right default for most dashboards; `'today'` is misleading on slow-traffic days.
+
+## Custom widget (Blade view)
+
+When the stats / chart / table widgets don't fit, drop down to a plain `Widget` with a Blade view:
+
+```php
+final class TasksWidget extends Widget
+{
+    protected static string $view = 'filament.widgets.tasks-widget';
+
+    protected int|string|array $columnSpan = 1;
+
+    public function getViewData(): array
+    {
+        return [
+            'tasks' => Task::query()
+                ->where('user_id', auth()->id())
+                ->whereNull('completed_at')
+                ->orderBy('due_date')
+                ->limit(5)
+                ->get(),
+        ];
+    }
+}
+```
+
+```blade
+{{-- resources/views/filament/widgets/tasks-widget.blade.php --}}
+<x-filament-widgets::widget>
+    <x-filament::section>
+        <x-slot name="heading">My Tasks</x-slot>
+
+        @forelse ($tasks as $task)
+            <div class="py-2">{{ $task->title }}</div>
+        @empty
+            <p class="text-sm text-gray-500">Nothing pending.</p>
+        @endforelse
+    </x-filament::section>
+</x-filament-widgets::widget>
+```
+
+- **MUST** wrap custom markup in `<x-filament-widgets::widget>` so background, border, and dark-mode styling stay consistent with stock widgets.
+- **MUST** return data from `getViewData()` rather than computing in the view — keeps the widget testable via `livewire(TasksWidget::class)->assertSuccessful()`.
+
 ## Table widget
 
 ```php

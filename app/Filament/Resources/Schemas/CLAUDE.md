@@ -151,7 +151,16 @@ Use on `CreateRecord` pages; on Edit pages, prefer Tabs.
 
 ## Infolist
 
-Read-only view of a record. Same `Schema` base, different component palette (`TextEntry`, `IconEntry`, `ImageEntry`, `KeyValueEntry`, `RepeatableEntry`, `ColorEntry`, `Section`, `Split`, `Grid`).
+Read-only view of a record. Same `Schema` base, different component palette.
+
+| Entry             | Use for                                                  |
+| ----------------- | -------------------------------------------------------- |
+| `TextEntry`       | strings, money, dates, dot-notation relations, markdown via `->markdown()` |
+| `IconEntry`       | boolean (`->boolean()`) or enum → icon                   |
+| `ImageEntry`      | single or stacked images (`->circular()`, `->stacked()`) |
+| `ColorEntry`      | display a hex color swatch                               |
+| `KeyValueEntry`   | flat key/value map                                       |
+| `RepeatableEntry` | HasMany list rendered with a nested schema               |
 
 ```php
 final class OrderInfolist
@@ -160,17 +169,33 @@ final class OrderInfolist
     {
         return $schema->components([
             Section::make('Summary')->schema([
-                TextEntry::make('reference'),
-                TextEntry::make('customer.name')->label('Customer'),
-                TextEntry::make('status')->badge(),
+                TextEntry::make('reference')->copyable(),
+                TextEntry::make('customer.name')->label('Customer')->icon('heroicon-o-user'),
+                TextEntry::make('status')->badge()->color(fn (string $s) => match ($s) {
+                    'pending' => 'warning',
+                    'paid'    => 'success',
+                    default   => 'gray',
+                }),
                 TextEntry::make('total_cents')->money(),
             ])->columns(2),
+
+            Section::make('Items')->schema([
+                RepeatableEntry::make('items')
+                    ->schema([
+                        TextEntry::make('name'),
+                        TextEntry::make('quantity'),
+                        TextEntry::make('price_cents')->money(),
+                    ])
+                    ->columns(3),
+            ]),
         ]);
     }
 }
 ```
 
-- **MUST** eager-load relations referenced via dot-notation (`customer.name`) on the Resource's `getEloquentQuery()`.
+- **MUST** eager-load relations referenced via dot-notation (`customer.name`) or by `RepeatableEntry::make('items')` on the Resource's `getEloquentQuery()` — same N+1 risk as table columns.
+- **SHOULD** use `Split::make([...])` with a main `Group` + sidebar `Group` for view pages that mix long-form content (description, comments) with metadata (status, dates).
+- **PREFER** `TextEntry::make(...)->badge()` over `IconEntry` for enum status — badges include the label text, which is more scannable than an icon alone.
 
 ## v5+ notes
 

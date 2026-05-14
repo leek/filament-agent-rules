@@ -151,6 +151,85 @@ Inside an `->action(...)` callback, bail out cleanly with `$action->halt()` or `
 
 - **PREFER** `->slideOver()` for forms with >5 fields — feels less cramped on wide screens.
 
+## Wizard (multi-step) action
+
+For long input flows, use `->steps([...])` instead of a single `->form(...)`:
+
+```php
+Action::make('createOrder')
+    ->icon('heroicon-o-shopping-cart')
+    ->steps([
+        Wizard\Step::make('Customer')->schema([
+            Select::make('customer_id')->relationship('customer', 'name')->required(),
+        ]),
+        Wizard\Step::make('Items')->schema([
+            Repeater::make('items')->schema([
+                Select::make('product_id')->relationship('product', 'name')->required(),
+                TextInput::make('quantity')->numeric()->required(),
+            ]),
+        ]),
+        Wizard\Step::make('Shipping')->schema([
+            Select::make('shipping_method')->options(['standard' => 'Standard', 'express' => 'Express']),
+        ]),
+    ])
+    ->action(fn (array $data) => app(CreateOrderAction::class)->run($data));
+```
+
+- **MUST** validate inside each `Wizard\Step` — Filament blocks "Next" until the step's fields pass.
+- **PREFER** wizard over a single long modal once you cross 3 logical sections; users abandon long single-page modals.
+
+## Styling reference
+
+```php
+Action::make('publish')
+    ->label('Publish')
+    ->icon('heroicon-o-paper-airplane')
+    ->iconPosition(IconPosition::After)
+    ->color('success')                  // primary | secondary | success | warning | danger | info | gray
+    ->size(ActionSize::Large)           // small | medium | large
+    ->button()                          // button | iconButton | link | outlined
+    ->keyBindings(['mod+s'])
+    ->badge(fn () => Notification::query()->unread()->count())
+    ->badgeColor('danger')
+    ->tooltip('Publish to all subscribers');
+```
+
+- **MUST** use `->iconButton()` for row-level repetitive actions; full-button labels in every row wreck table density.
+- **AVOID** `->keyBindings([...])` outside power-user surfaces — keyboard shortcuts on customer-facing panels conflict with browser/OS bindings.
+
+## Notification with follow-up action
+
+Pair a destructive action with an undo button via `Notification::actions`:
+
+```php
+->action(function (Order $record): void {
+    $original = $record->replicate();
+    app(ArchiveOrderAction::class)->run($record);
+
+    Notification::make()
+        ->title('Order archived')
+        ->success()
+        ->actions([
+            NotificationAction::make('undo')
+                ->color('gray')
+                ->action(fn () => app(RestoreOrderAction::class)->run($record)),
+        ])
+        ->send();
+});
+```
+
+- **MUST** keep the undo window honest — only offer undo when the underlying mutation is genuinely reversible. A fake undo button is worse than no undo.
+
+## Header actions vs row actions vs page actions
+
+| Surface | Where | Use for |
+| ------- | ----- | ------- |
+| `getHeaderActions()` on List page | top of the table | global ops (Create, Import, Export) |
+| `->headerActions([...])` on the table | same row as Search | table-scoped ops (Attach in a relation manager, table-wide refresh) |
+| `->actions([...])` on the table | per row | per-record ops (View, Edit, Approve) |
+| `->bulkActions([...])` on the table | bulk strip | per-selection ops (Delete, Archive, Assign) |
+| `getHeaderActions()` on View/Edit page | top of the page | per-record ops outside the table context |
+
 ## Notifications inside actions
 
 ```php

@@ -136,6 +136,35 @@ Filter::make('created_at')
 
 - **MUST** call `->requiresConfirmation()` on any destructive action.
 - **MUST** use `->visible(...)` / `->hidden(...)` to hide actions the policy denies — keep UI honest.
+- **PREFER** wrapping >2 row actions in `ActionGroup::make([...])->dropdown()` — otherwise the table actions column eats half the row width on dense lists.
+
+## Header actions
+
+Table-scoped operations (Create, Import, Export, Attach) belong here, not on the page:
+
+```php
+->headerActions([
+    CreateAction::make(),
+    Action::make('import')
+        ->icon('heroicon-o-arrow-up-tray')
+        ->form([FileUpload::make('file')->acceptedFileTypes(['text/csv'])->required()])
+        ->action(fn (array $data) => app(ImportOrdersAction::class)->run($data['file'])),
+])
+```
+
+- **MUST** delegate non-trivial work to an `app/Actions/` class.
+- **AVOID** putting record-scoped actions in `headerActions()` — they have no `$record` and confuse the admin.
+
+## ImageColumn options
+
+```php
+ImageColumn::make('avatar')->circular()->size(40);                 // single
+ImageColumn::make('images')->stacked()->limit(3)->limitedRemainingText();  // multi
+ImageColumn::make('logo')->defaultImageUrl(asset('placeholder.svg')); // fallback
+```
+
+- **MUST** set `->defaultImageUrl(...)` on any column where the value can be null — broken `<img>` placeholders look like bugs.
+- **MUST** scope file-disk thumbnails via `->disk('s3')` (or whichever) — the panel server may not have the same default disk as the queue worker.
 
 ## Bulk actions
 
