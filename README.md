@@ -54,6 +54,23 @@ app/Providers/Filament/AGENTS.md
 
 Each agent picks up the rules colocated with the file it's editing — no central rules file, no manual wiring. Subdirectory rules ship as separate files in their own subdirectories, not concatenated into the root.
 
+### Claude glob-based rules (`.claude/rules/*.md`)
+
+In addition to the per-directory `CLAUDE.md` files, this repo ships a `.claude/rules/` directory containing the same content with `globs:` frontmatter. Filament projects often deviate from the stock layout — domain-grouped resources like `app/Filament/Resources/Shop/Products/Pages/...` won't match a strict per-directory CLAUDE.md, but a glob like `app/Filament/Resources/**/Pages/*.php` catches them all.
+
+The `.claude/rules/` files copy the canonical CLAUDE.md content and add Cursor-style frontmatter:
+
+```yaml
+---
+description: Resource page classes (lifecycle hooks)
+globs:
+  - app/Filament/Resources/**/Pages/*.php
+alwaysApply: false
+---
+```
+
+Both systems coexist: the per-dir `CLAUDE.md` is the source of truth, and `.claude/rules/*.md` mirrors it for dynamic glob matching. Edit the per-dir file; `.claude/rules/` regenerates from it.
+
 ## What you get
 
 | Path                                              | Covers                                                                     |
