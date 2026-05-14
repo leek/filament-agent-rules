@@ -1,8 +1,7 @@
 ---
 description: Cluster classes grouping related Resources under one sidebar item
 globs:
-  - app/Filament/Clusters/*.php
-  - app/Filament/**/Clusters/*.php
+  - app/Filament/Clusters/**/*.php
 alwaysApply: false
 ---
 

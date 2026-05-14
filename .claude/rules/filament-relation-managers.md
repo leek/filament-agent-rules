@@ -1,7 +1,7 @@
 ---
 description: Relation managers attached to a parent Resource (HasMany, BelongsToMany, MorphMany)
 globs:
-  - app/Filament/**/RelationManagers/*.php
+  - app/Filament/Resources/**/RelationManagers/*.php
 alwaysApply: false
 ---
 

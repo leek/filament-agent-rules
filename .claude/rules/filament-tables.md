@@ -1,7 +1,7 @@
 ---
 description: Reusable Table schema classes (columns, filters, recordActions, toolbarActions)
 globs:
-  - app/Filament/**/Tables/*.php
+  - app/Filament/Resources/**/Tables/*.php
 alwaysApply: false
 ---
 

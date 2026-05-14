@@ -1,7 +1,7 @@
 ---
 description: Dashboard widgets (stats, charts, table widgets, custom Blade widgets)
 globs:
-  - app/Filament/**/Widgets/*.php
+  - app/Filament/Widgets/**/*.php
 alwaysApply: false
 ---
 

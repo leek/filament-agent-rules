@@ -1,7 +1,8 @@
 ---
 description: Filament pages — custom panel pages AND resource pages (lifecycle, auth, header actions, polling)
 globs:
-  - app/Filament/**/Pages/*.php
+  - app/Filament/Pages/**/*.php
+  - app/Filament/Resources/**/Pages/*.php
 alwaysApply: false
 ---
 
