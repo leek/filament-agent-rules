@@ -102,6 +102,34 @@ it('renders columns', function () {
 
 - **MUST** call `assertCanRenderTableColumn(...)` on every column that uses dot-notation (`customer.name`) — catches missing eager-loads that throw under `Model::preventLazyLoading()` in tests.
 
+Column visibility:
+
+```php
+livewire(ListOrders::class)
+    ->assertTableColumnVisible('reference')
+    ->assertTableColumnHidden('internal_cost');
+
+livewire(ListOrders::class)
+    ->assertCanNotRenderTableColumn('deleted_at');
+```
+
+Bulk action flow (select first, then call):
+
+```php
+livewire(ListOrders::class)
+    ->selectTableRecords($orders)
+    ->callTableBulkAction('updateStatus', $orders, data: ['status' => 'paid'])
+    ->assertHasNoTableBulkActionErrors();
+```
+
+Row-action redirect:
+
+```php
+livewire(ListOrders::class)
+    ->callTableAction('edit', $order)
+    ->assertRedirect(OrderResource::getUrl('edit', ['record' => $order]));
+```
+
 ## Form assertions (Create / Edit)
 
 ```php
@@ -195,6 +223,23 @@ it('bulk-archives selected orders', function () {
     }
 });
 ```
+
+## Notification assertions
+
+```php
+livewire(EditOrder::class, ['record' => $order->getRouteKey()])
+    ->callAction('approve')
+    ->assertNotified('Order approved');
+
+livewire(EditOrder::class, ['record' => $order->getRouteKey()])
+    ->callAction('reject', data: ['reason' => 'Invalid PO'])
+    ->assertNotified(
+        Notification::make()->title('Order rejected')->danger()
+    );
+```
+
+- **MUST** assert notifications on any action whose only success signal is a toast — without the assertion, a regression that drops the notification looks green.
+- **AVOID** asserting on notification body text — bodies often include interpolated record state and break across factory seeds.
 
 ## Authorization
 

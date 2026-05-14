@@ -51,6 +51,78 @@ Filament leans heavily on fluent builders inside static methods (`form(Schema $s
 - **MUST NOT** inline `auth()->user()->isAdmin()` checks inside Resource methods — funnel through the policy.
 - For panel-level access, implement `FilamentUser::canAccessPanel(Panel $panel)` on the `User` model.
 
+## Notifications (cross-cutting)
+
+`Filament\Notifications\Notification` is the canonical way to surface feedback from any panel surface — Resource pages, Actions, Widgets, custom Pages, queued Jobs.
+
+```php
+use Filament\Notifications\Notification;
+
+Notification::make()
+    ->title('Order approved')
+    ->body("Reference #{$order->reference}")
+    ->success()
+    ->send();
+```
+
+| Method        | When                                              |
+| ------------- | ------------------------------------------------- |
+| `->success()` | Operation completed                               |
+| `->danger()`  | Operation failed / hard error                     |
+| `->warning()` | Risky-but-not-failed state, expiring data         |
+| `->info()`    | Neutral info, "new version available", etc.       |
+
+Rules:
+
+- **MUST** call `->send()` — without it the notification is built and discarded silently. Easiest bug to ship.
+- **MUST** use `->title(...)` (short) + `->body(...)` (detail). One-line titles read better in stacked toasts.
+- **MUST** mark recoverable-error notifications `->persistent()` — auto-dismiss hides the actual problem.
+- **PREFER** `->send()` (toast) for ephemeral feedback; **PREFER** `->sendToDatabase($user)` for events the admin should find later (new comment, mention, export ready).
+- **AVOID** "Saved!" notifications on routine CRUD; Filament already ships a default save notification — duplicating it just adds noise. Override `getSavedNotification()` on the page if you need to customise.
+
+### Database (notification center)
+
+Enable on the `PanelProvider`:
+
+```php
+->databaseNotifications()
+->databaseNotificationsPolling('60s') // or null to disable polling
+```
+
+Send to specific user(s):
+
+```php
+Notification::make()
+    ->title('New comment on your post')
+    ->actions([NotificationAction::make('view')->url(route('posts.show', $post))])
+    ->sendToDatabase($user);
+
+Notification::make()->title('Maintenance tonight')->sendToDatabase($admins);
+```
+
+- **MUST NOT** poll the notification center faster than 30s in production — every poll runs a query per logged-in admin.
+- **MUST** run `php artisan notifications:table` and migrate before enabling `->databaseNotifications()` — without the table the panel throws on every page load.
+
+### Inside an Action
+
+```php
+->action(function (Order $record): void {
+    try {
+        app(ApproveOrderAction::class)->run($record);
+        Notification::make()->title('Approved')->success()->send();
+    } catch (DomainException $e) {
+        Notification::make()
+            ->title('Approval failed')
+            ->body($e->getMessage())
+            ->danger()
+            ->persistent()
+            ->send();
+    }
+});
+```
+
+- **MUST** wrap fallible actions in try/catch and emit a `danger` notification — uncaught exceptions bubble to Livewire and render as a generic 500.
+
 ## v5+ notes
 
 - Filament v5 requires **Tailwind v4** for custom themes. Default theme works unchanged.

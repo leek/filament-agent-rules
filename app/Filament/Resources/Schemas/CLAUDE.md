@@ -105,6 +105,82 @@ Select::make('customer_id')
 
 **MUST** call `->preload()` only on small relations (<200 rows). For larger sets, leave the async search behavior.
 
+## Reusable schema fragments
+
+Share field clusters across multiple resources without inheritance — return an array from a static method and spread it:
+
+```php
+final class ContactFields
+{
+    public static function make(): array
+    {
+        return [
+            TextInput::make('email')->email()->required(),
+            TextInput::make('phone')->tel(),
+            TextInput::make('website')->url()->prefix('https://'),
+        ];
+    }
+}
+
+// Resource:
+$schema->components([
+    Section::make('Contact')->schema([...ContactFields::make()]),
+]);
+```
+
+- **MUST** keep fragments stateless — no `$this`, no constructor args that vary by record. If the fragment needs record context, accept it as a parameter (`make(?Model $record = null)`).
+- **PREFER** this over a base class that defines `getSharedFields()` — composition reads better than inheritance for schemas.
+
+## State callbacks
+
+| Callback                   | Runs when                                                      |
+| -------------------------- | -------------------------------------------------------------- |
+| `->afterStateHydrated(fn)` | After form is filled from the model (Edit page)                |
+| `->afterStateUpdated(fn)`  | After the field's state changes (requires `->live()`)          |
+| `->formatStateUsing(fn)`   | Before display — transform DB value into form value            |
+| `->dehydrateStateUsing(fn)`| Before save — transform form value into DB value               |
+| `->dehydrated(false)`      | Skip persistence entirely (display-only fields)                |
+
+Slug-from-title pattern:
+
+```php
+TextInput::make('title')
+    ->required()
+    ->live(onBlur: true)
+    ->afterStateUpdated(fn (string $state, Set $set) => $set('slug', Str::slug($state)));
+
+TextInput::make('slug')
+    ->required()
+    ->unique(ignoreRecord: true);
+```
+
+Computed total (display-only):
+
+```php
+TextInput::make('subtotal_cents')
+    ->numeric()
+    ->dehydrated(false)
+    ->afterStateHydrated(fn ($state, $record, Set $set) => $set('subtotal_cents', $record?->subtotal_cents))
+    ->formatStateUsing(fn (Get $get) => collect($get('items'))->sum(fn ($i) => $i['quantity'] * $i['price_cents']));
+```
+
+- **MUST** call `->live(onBlur: true)` on the trigger field (not `->live()`) for text inputs — every keystroke otherwise round-trips to the server.
+- **AVOID** chaining `->formatStateUsing()` + `->dehydrateStateUsing()` to silently transform values — admins editing a record see one value, save a different one. Use it for unit conversion (cents ↔ dollars) only when documented.
+
+## Custom validation messages
+
+```php
+TextInput::make('email')
+    ->email()
+    ->required()
+    ->validationMessages([
+        'email'    => 'That doesn\'t look like a valid email.',
+        'required' => 'We need an email to reach you.',
+    ]);
+```
+
+- **PREFER** validation messages over generic Laravel defaults on customer-visible fields. Don't bother on staff-only admin fields.
+
 ## Dependent fields — `live()` + `->options(fn ...)`
 
 When one field's options depend on another's value, **MUST** mark the parent `->live()`:

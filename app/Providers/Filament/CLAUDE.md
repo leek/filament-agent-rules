@@ -124,6 +124,92 @@ final class User extends Authenticatable implements FilamentUser
   }
   ```
 
+### User model contracts
+
+Implement all three on the User model for full tenancy support:
+
+```php
+final class User extends Authenticatable implements FilamentUser, HasTenants, HasDefaultTenant
+{
+    public function teams(): BelongsToMany
+    {
+        return $this->belongsToMany(Team::class)->withPivot('role')->withTimestamps();
+    }
+
+    public function getTenants(Panel $panel): Collection
+    {
+        return $this->teams;
+    }
+
+    public function canAccessTenant(Model $tenant): bool
+    {
+        return $this->teams()->whereKey($tenant->getKey())->exists();
+    }
+
+    public function getDefaultTenant(Panel $panel): ?Model
+    {
+        return $this->latestTeam ?? $this->teams->first();
+    }
+}
+```
+
+- **MUST** implement `HasTenants` once the panel ships — without it the tenant picker shows nothing and admins get stuck.
+- **SHOULD** implement `HasDefaultTenant` so returning users land on their last-used tenant instead of being forced to pick.
+
+### Registration / profile pages
+
+```bash
+php artisan make:filament-page Tenancy/RegisterTeam --type=tenant-registration
+php artisan make:filament-page Tenancy/EditTeamProfile --type=tenant-profile
+```
+
+```php
+final class RegisterTeam extends RegisterTenant
+{
+    public static function getLabel(): string { return 'Register team'; }
+
+    public function form(Schema $schema): Schema
+    {
+        return $schema->components([
+            TextInput::make('name')->required()->maxLength(255),
+            TextInput::make('slug')->required()->unique('teams', 'slug')->maxLength(255),
+        ]);
+    }
+
+    protected function handleRegistration(array $data): Team
+    {
+        $team = Team::create($data);
+        $team->members()->attach(auth()->user(), ['role' => 'owner']);
+        return $team;
+    }
+}
+```
+
+- **MUST** attach the registering user to the new tenant inside `handleRegistration()` — Filament won't do this for you.
+
+### Routing modes
+
+```php
+// Path-based: /admin/{tenant}/orders
+->tenant(Team::class, slugAttribute: 'slug')
+
+// Subdomain: {tenant}.example.com/admin/orders
+->tenant(Team::class, slugAttribute: 'slug')
+->tenantDomain('{tenant:slug}.example.com')
+```
+
+- **MUST** add a wildcard subdomain DNS record + Apache/Nginx config before shipping subdomain tenancy.
+- **AVOID** mixing subdomain and path tenancy on different panels in the same app — session/cookie scope gets confusing.
+
+### Notification center
+
+```php
+->databaseNotifications()
+->databaseNotificationsPolling('60s')
+```
+
+Run `php artisan notifications:table && php artisan migrate` before enabling — see `app/Filament/CLAUDE.md`.
+
 ## Theme + colors
 
 ```php

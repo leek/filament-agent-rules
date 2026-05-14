@@ -138,6 +138,57 @@ public static function shouldRegisterNavigation(): bool
 }
 ```
 
+### Static `can*` overrides
+
+When a check depends on Resource-level context (not just the model), override the static `can*` methods instead of pushing the logic into the policy:
+
+```php
+public static function canCreate(): bool
+{
+    return Feature::active('new-orders') && auth()->user()?->can('create', Order::class);
+}
+
+public static function canEdit(Model $record): bool
+{
+    return ! $record->isLocked() && auth()->user()?->can('update', $record);
+}
+```
+
+- **MUST** still call the policy from inside these overrides — keep the policy as the single source of truth for per-record rules.
+- **PREFER** putting time-window or feature-flag checks here rather than in the policy (the policy stays pure record-vs-user).
+
+### `Response::deny()` with a reason
+
+Returning a string-reason from a policy surfaces it in Filament's denial UI:
+
+```php
+public function update(User $user, Order $order): bool|Response
+{
+    if ($order->isLocked()) {
+        return Response::deny('Order is locked while payment is pending.');
+    }
+
+    return $user->id === $order->owner_id || $user->isAdmin();
+}
+```
+
+- **SHOULD** use `Response::deny('...')` over a silent `false` whenever the admin can plausibly fix the situation — "locked", "out of date range", "missing approval" all benefit from being visible.
+
+### Field/column visibility
+
+Hide sensitive fields from non-privileged admins inside the schema, not via a separate policy file:
+
+```php
+TextInput::make('internal_notes')
+    ->visible(fn () => auth()->user()->can('view-internal-notes'));
+
+TextColumn::make('cost_cents')
+    ->money()
+    ->toggleable(isToggledHiddenByDefault: ! auth()->user()->isFinance());
+```
+
+- **MUST** also call `->dehydrated(fn () => ...)` on sensitive form fields you hide — otherwise a crafted Livewire request can still set the value.
+
 ## Cluster membership
 
 To group multiple resources under a cluster:
