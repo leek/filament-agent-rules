@@ -220,15 +220,51 @@ Pair a destructive action with an undo button via `Notification::actions`:
 
 - **MUST** keep the undo window honest — only offer undo when the underlying mutation is genuinely reversible. A fake undo button is worse than no undo.
 
-## Header actions vs row actions vs page actions
+## Header actions vs row actions vs page actions (v5 surface)
 
 | Surface | Where | Use for |
 | ------- | ----- | ------- |
 | `getHeaderActions()` on List page | top of the table | global ops (Create, Import, Export) |
-| `->headerActions([...])` on the table | same row as Search | table-scoped ops (Attach in a relation manager, table-wide refresh) |
-| `->actions([...])` on the table | per row | per-record ops (View, Edit, Approve) |
-| `->bulkActions([...])` on the table | bulk strip | per-selection ops (Delete, Archive, Assign) |
+| `->headerActions([...])` on the table | table header strip | table-scoped non-bulk ops (Create on a relation manager, refresh) |
+| `->recordActions([...])` on the table *(v5; v4 was `->actions()`)* | per row | per-record ops (View, Edit, Approve) |
+| `->toolbarActions([...])` on the table *(v5; v4 was `->bulkActions()`)* | toolbar / bulk strip | bulk operations, usually wrapped in `BulkActionGroup` |
+| `->groupedBulkActions([...])` | toolbar | shorthand when every bulk action fits one group |
 | `getHeaderActions()` on View/Edit page | top of the page | per-record ops outside the table context |
+
+## Modal forms — `->schema()` not `->form()`
+
+```php
+EditAction::make()
+    ->schema([
+        TextInput::make('title')->required(),
+        Textarea::make('notes'),
+    ])
+    ->action(function (array $data, Order $record) { /* ... */ });
+```
+
+- v5 actions configure their modal via `->schema([...])`. The v4-style `->form([...])` no longer works on Action / BulkAction / EditAction / etc.
+- The submitted state arrives in the callback as `$data` (same as v4).
+
+## Imports — `Filament\Actions\*`
+
+```php
+use Filament\Actions\Action;
+use Filament\Actions\ActionGroup;
+use Filament\Actions\BulkAction;
+use Filament\Actions\BulkActionGroup;
+use Filament\Actions\CreateAction;
+use Filament\Actions\DeleteAction;
+use Filament\Actions\DeleteBulkAction;
+use Filament\Actions\EditAction;
+use Filament\Actions\ForceDeleteAction;
+use Filament\Actions\ForceDeleteBulkAction;
+use Filament\Actions\ReplicateAction;
+use Filament\Actions\RestoreAction;
+use Filament\Actions\RestoreBulkAction;
+use Filament\Actions\ViewAction;
+```
+
+- v5 unified every action class under `Filament\Actions\*`. The v4-era `Filament\Tables\Actions\*` and `Filament\Forms\Actions\*` namespaces **do not exist** — referencing them throws a fatal class-not-found.
 
 ## Notifications inside actions
 
@@ -249,6 +285,56 @@ Or for fully custom:
     }
 });
 ```
+
+## Import / Export actions (v5)
+
+Filament v5 ships first-class import/export plumbing — don't roll your own Maatwebsite/Excel pipeline unless you already depend on it.
+
+```bash
+php artisan make:filament-exporter OrderExporter --model=Order
+php artisan make:filament-importer OrderImporter --model=Order
+```
+
+```php
+// Exporter columns
+public static function getColumns(): array
+{
+    return [
+        ExportColumn::make('reference'),
+        ExportColumn::make('customer.name'),
+        ExportColumn::make('total_cents')->formatStateUsing(fn ($state) => $state / 100),
+        ExportColumn::make('created_at')->formatStateUsing(fn ($state) => $state?->toIso8601String()),
+    ];
+}
+
+// Importer columns + rules
+public static function getColumns(): array
+{
+    return [
+        ImportColumn::make('reference')->requiredMapping()->rules(['required', 'string', 'max:50']),
+        ImportColumn::make('total_cents')->numeric()->rules(['required', 'integer', 'min:0']),
+        ImportColumn::make('customer_email')->requiredMapping()->rules(['required', 'email']),
+    ];
+}
+
+public function resolveRecord(): ?Order
+{
+    return Order::firstOrNew(['reference' => $this->data['reference']]);
+}
+```
+
+Wire into the table:
+
+```php
+->headerActions([
+    ImportAction::make()->importer(OrderImporter::class),
+    ExportAction::make()->exporter(OrderExporter::class),
+])
+```
+
+- **MUST** queue imports of >1k rows — the action returns immediately and emails the admin when done.
+- **MUST** put `resolveRecord()` logic in the Importer, not in `beforeFill` — Filament uses it to decide insert-vs-update per row.
+- **AVOID** wide CSV imports (>30 columns); split into multiple importers per concern (order header vs items vs payments).
 
 ## v5+ notes
 

@@ -187,6 +187,37 @@ final class RegisterTeam extends RegisterTenant
 
 - **MUST** attach the registering user to the new tenant inside `handleRegistration()` — Filament won't do this for you.
 
+### Validation: tenant-scoped uniqueness
+
+When the same column needs to be unique *per tenant* (not globally), use the scoped variants:
+
+```php
+TextInput::make('slug')
+    ->required()
+    ->scopedUnique(ignoreRecord: true);   // unique within current tenant
+
+Select::make('category_id')
+    ->scopedExists('id', 'categories');    // must exist *within current tenant*
+```
+
+- **MUST** use `->scopedUnique()` / `->scopedExists()` (not plain `->unique()` / `->exists()`) for any tenant-scoped column — plain Laravel rules ignore the tenant context and either falsely reject or falsely accept.
+
+### Form selects are NOT auto-scoped
+
+`->tenant(Team::class)` scopes resource queries but does **not** filter the options of relationship selects. Scope them manually:
+
+```php
+Select::make('customer_id')
+    ->relationship(
+        name: 'customer',
+        titleAttribute: 'name',
+        modifyQueryUsing: fn (Builder $query) => $query->whereBelongsTo(Filament::getTenant()),
+    )
+    ->required();
+```
+
+- **MUST** add `modifyQueryUsing` to every relationship select on a tenant-scoped resource — without it, admins can pick records from other tenants and silently break isolation.
+
 ### Routing modes
 
 ```php
@@ -273,8 +304,39 @@ Insert custom Blade at well-defined slots:
 
 Useful slots: `BODY_START`, `BODY_END`, `HEAD_END`, `TOPBAR_END`, `SIDEBAR_NAV_START`, `SIDEBAR_NAV_END`, `USER_MENU_BEFORE`, `USER_MENU_AFTER`, `AUTH_LOGIN_FORM_AFTER`.
 
+## Panel-level safety + UX options (v5)
+
+```php
+->spa()                            // single-page-app navigation; preserves Livewire state across links
+->unsavedChangesAlerts()           // browser prompt when leaving a dirty form
+->databaseTransactions()           // wrap every action callback in a DB transaction automatically
+```
+
+- **MUST** call `->databaseTransactions()` on any panel with multi-step actions (Approve-then-Notify, Import, etc.). Without it, a failure halfway through an action leaves the DB in a half-written state.
+- **SHOULD** enable `->unsavedChangesAlerts()` on admin panels — it prevents the most common "I lost my work" support ticket.
+- **AVOID** `->spa()` on panels that embed external iframes or render large file uploads — SPA mode keeps the old page in memory and can leak DOM nodes.
+
+## Production deploy
+
+```bash
+php artisan optimize
+php artisan filament:optimize
+```
+
+- **MUST** run `filament:optimize` in the production deploy pipeline — it caches component discovery and shaves hundreds of ms off the first page-load query.
+- **MUST NOT** run `filament:optimize` in local dev — newly added resources/widgets won't be discovered until the cache is cleared.
+- Pair with `php artisan filament:clear-cached-components` in a `post-update-cmd` Composer hook so devs don't get stuck after pulling new resources.
+
 ## v5+ notes
 
 - v5 uses **Livewire v4** internally. Existing Filament classes work unchanged; Livewire 4 attributes (`#[Locked]`, `#[Computed]`, `#[On]`, etc.) become available inside pages/widgets.
 - v5 custom themes **require Tailwind v4**. Upgrade your `tailwind.config.js` before bumping to v5.
-- v5 ships an upgrade script (`php artisan filament:upgrade`) — run it before manually editing anything.
+- v5 ships an upgrade script (`vendor/bin/filament-v5`) — run it before manually editing anything.
+- v5 **renames** common APIs. See `app/Filament/CLAUDE.md` for the consolidated import map; key deltas:
+  - All action classes import from `Filament\Actions\*` (not `Filament\Tables\Actions\*` or `Filament\Forms\Actions\*`).
+  - Layout components (`Section`, `Grid`, `Tabs`, `Wizard`) live under `Filament\Schemas\Components\*`.
+  - `BadgeColumn` is removed — use `TextColumn::make(...)->badge()`.
+  - Action modal forms use `->schema([...])`, not `->form([...])`.
+  - Tables use `->recordActions(...)` / `->toolbarActions(...)` instead of `->actions(...)` / `->bulkActions(...)`.
+  - Icons accept the `Heroicon` enum (`Filament\Support\Icons\Heroicon::PencilSquare`) or the legacy string form (`'heroicon-o-pencil-square'`).
+  - The `Operation` enum (`Filament\Support\Enums\Operation::Create`) replaces string comparisons like `$operation === 'create'`.

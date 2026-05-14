@@ -2,7 +2,7 @@
 
 Cross-cutting conventions for the Filament admin layer. Per-class-type rules live in the matching directory's `CLAUDE.md` — read both when editing a file.
 
-Targets **Filament v4 + v5**. v5 introduced no public-API breaks over v4 (Livewire 4 compat bump). Rules call out the few deltas inline with "v5+:" markers.
+Targets **Filament v4 + v5**. v5 (Livewire 4 bump, Jan 2026) renames several public APIs — table action methods, the `Filament\Actions\*` namespace consolidation, action modal `->schema()` over `->form()`, removed `BadgeColumn`, layout components under `Filament\Schemas\Components\*`. Examples below show v5 names; v4 equivalents flagged inline where they differ.
 
 All rules below are **MUST** unless tagged **SHOULD** / **PREFER** / **AVOID**.
 
@@ -44,6 +44,71 @@ Action::make('approve')
 ## Configuration over inheritance
 
 Filament leans heavily on fluent builders inside static methods (`form(Schema $schema)`, `table(Table $table)`, `infolist(Schema $schema)`). Override the builder method on the Resource/Page/Widget — don't subclass framework classes.
+
+## Enums for status / type / category
+
+Back every status, type, or category column with a PHP enum that implements the Filament presentation contracts. One enum drives the form select, the table badge, the infolist entry, and the policy guard — no parallel `match` blocks to keep in sync.
+
+```php
+use Filament\Support\Contracts\{HasColor, HasIcon, HasLabel};
+use Filament\Support\Icons\Heroicon;
+
+enum OrderStatus: string implements HasLabel, HasColor, HasIcon
+{
+    case Pending = 'pending';
+    case Paid    = 'paid';
+    case Shipped = 'shipped';
+    case Cancelled = 'cancelled';
+
+    public function getLabel(): string
+    {
+        return match ($this) {
+            self::Pending   => 'Pending',
+            self::Paid      => 'Paid',
+            self::Shipped   => 'Shipped',
+            self::Cancelled => 'Cancelled',
+        };
+    }
+
+    public function getColor(): string
+    {
+        return match ($this) {
+            self::Pending   => 'warning',
+            self::Paid      => 'success',
+            self::Shipped   => 'info',
+            self::Cancelled => 'danger',
+        };
+    }
+
+    public function getIcon(): string|Heroicon
+    {
+        return match ($this) {
+            self::Pending   => Heroicon::Clock,
+            self::Paid      => Heroicon::CheckCircle,
+            self::Shipped   => Heroicon::Truck,
+            self::Cancelled => Heroicon::XCircle,
+        };
+    }
+}
+```
+
+Then on the Eloquent model:
+
+```php
+protected $casts = ['status' => OrderStatus::class];
+```
+
+Resource surfaces auto-pick up the labels/colors/icons:
+
+```php
+Select::make('status')->options(OrderStatus::class);                 // form
+TextColumn::make('status')->badge();                                  // table — colour/icon inferred
+IconEntry::make('status');                                            // infolist
+```
+
+- **MUST** keep enum case names PascalCase and backed values snake_case — backed values become DB column values; casing matters for migrations and search.
+- **MUST** use semantic colors (`success`/`warning`/`danger`/`info`/`primary`/`gray`) — Filament maps them through the theme, so palette changes propagate without touching enums.
+- **PREFER** an enum over a `string` column the moment a state machine appears (more than 2 values, or any forbidden transition).
 
 ## Authorization
 

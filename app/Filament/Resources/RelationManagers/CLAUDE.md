@@ -51,14 +51,14 @@ final class ItemsRelationManager extends RelationManager
                 TextColumn::make('quantity'),
                 TextColumn::make('price_cents')->money(),
             ])
-            ->headerActions([Tables\Actions\CreateAction::make()])
-            ->actions([
-                Tables\Actions\EditAction::make(),
-                Tables\Actions\DeleteAction::make(),
+            ->headerActions([CreateAction::make()])
+            ->recordActions([
+                EditAction::make(),
+                DeleteAction::make(),
             ])
-            ->bulkActions([
-                Tables\Actions\BulkActionGroup::make([
-                    Tables\Actions\DeleteBulkAction::make(),
+            ->toolbarActions([
+                BulkActionGroup::make([
+                    DeleteBulkAction::make(),
                 ]),
             ]);
     }

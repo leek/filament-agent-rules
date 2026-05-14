@@ -2,7 +2,7 @@
 
 Directory-scoped agent rules for Filament projects. Each `CLAUDE.md` lives next to the code it governs and mirrors the [filamentphp/filament](https://github.com/filamentphp/filament) panel skeleton — agents pick up the rules for whatever file you're editing.
 
-Targets **Filament v4 and v5**. v5 (released Jan 2026) is a Livewire v4 compat bump with the same public API as v4; rules call out the few deltas inline.
+Targets **Filament v4 and v5**. v5 (released Jan 2026) bumps to Livewire v4 and ships a handful of API renames — most notably `Tables\Actions\*` collapsing into `Filament\Actions\*`, table method renames (`actions` → `recordActions`, `bulkActions` → `toolbarActions`), the removal of `BadgeColumn` (use `TextColumn::badge()`), and action modals moving from `->form()` to `->schema()`. Layout components (`Section`, `Grid`, `Tabs`, `Wizard`) live under `Filament\Schemas\Components\*` in v5 only. Rules show v5 names and flag the v4 form inline.
 
 ## Install
 

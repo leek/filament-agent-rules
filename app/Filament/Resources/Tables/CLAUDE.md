@@ -35,11 +35,11 @@ final class OrdersTable
                 Filter::make('high_value')->query(fn (Builder $q) => $q->where('total_cents', '>', 100_00)),
                 TrashedFilter::make(),
             ])
-            ->actions([
+            ->recordActions([
                 ViewAction::make(),
                 EditAction::make(),
             ])
-            ->bulkActions([
+            ->toolbarActions([
                 BulkActionGroup::make([
                     DeleteBulkAction::make(),
                     ForceDeleteBulkAction::make(),
@@ -66,13 +66,15 @@ final class OrdersTable
 
 | Column         | Use for                                                  |
 | -------------- | -------------------------------------------------------- |
-| `TextColumn`   | plain text, money, datetime, dot-notation relations      |
+| `TextColumn`   | plain text, money, datetime, dot-notation relations; call `->badge()` for enum chips |
 | `IconColumn`   | boolean / enum → icon (`->boolean()`, `->options(...)`)  |
 | `ImageColumn`  | thumbnails (use `->disk('s3')` for cloud)                |
-| `BadgeColumn`  | enum with color (or `TextColumn::badge()`)               |
+| `ColorColumn`  | hex color swatch                                         |
 | `ToggleColumn` | inline edit a boolean — **commits on click**             |
 | `SelectColumn` / `TextInputColumn` | inline edit — commit on blur         |
 | `CheckboxColumn` | inline edit a boolean checkbox                          |
+
+- v5 **removed `BadgeColumn`**. Use `TextColumn::make(...)->badge()->color(fn ($state) => ...)` instead.
 
 - **MUST** authorize inline-editable columns (`ToggleColumn`, `SelectColumn`, etc.) — Filament does NOT auto-check the policy's `update` ability.
 
@@ -122,17 +124,19 @@ Filter::make('created_at')
 ## Row actions
 
 ```php
-->actions([
+->recordActions([
     ViewAction::make(),
     EditAction::make(),
     Action::make('approve')
-        ->icon('heroicon-o-check')
+        ->icon(Heroicon::Check)
         ->color('success')
         ->requiresConfirmation()
         ->visible(fn (Order $record) => $record->status === 'pending')
         ->action(fn (Order $record) => app(ApproveOrderAction::class)->run($record)),
 ])
 ```
+
+> v5 renamed `->actions(...)` to `->recordActions(...)`. The v4 name no longer exists.
 
 - **MUST** call `->requiresConfirmation()` on any destructive action.
 - **MUST** use `->visible(...)` / `->hidden(...)` to hide actions the policy denies — keep UI honest.
@@ -169,17 +173,25 @@ ImageColumn::make('logo')->defaultImageUrl(asset('placeholder.svg')); // fallbac
 ## Bulk actions
 
 ```php
-->bulkActions([
+->toolbarActions([
     BulkActionGroup::make([
         DeleteBulkAction::make(),
         BulkAction::make('archive')
             ->requiresConfirmation()
+            ->authorizeIndividualRecords('archive')
             ->action(fn (Collection $records) => app(ArchiveOrdersAction::class)->run($records)),
     ]),
 ])
+
+// Shorthand when every bulk action is in one group:
+->groupedBulkActions([
+    DeleteBulkAction::make(),
+    BulkAction::make('archive')->action(fn (Collection $records) => /* ... */),
+])
 ```
 
-- **MUST** authorize bulk actions explicitly — policies do not run automatically.
+- v5 renamed `->bulkActions(...)` to `->toolbarActions(...)`. Use `->groupedBulkActions([...])` as a shorthand when wrapping in a single `BulkActionGroup`.
+- **MUST** authorize bulk actions explicitly — policies do not run automatically. v5 ships `->authorizeIndividualRecords('ability')` which runs the policy check per record and silently drops those the user can't touch.
 - **MUST** chunk bulk operations for >1k rows; do not iterate the full `$records` collection in memory.
 
 ## Polling
