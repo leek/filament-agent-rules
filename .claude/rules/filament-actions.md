@@ -1,7 +1,7 @@
 ---
 description: Filament UI Actions — extracted action classes and inline action usage (modals, bulk, wizard, Importer/Exporter, notifications)
 globs:
-  - app/Filament/Actions/**/*.php
+  - app/Filament/Resources/**/Actions/*.php
 alwaysApply: false
 ---
 
