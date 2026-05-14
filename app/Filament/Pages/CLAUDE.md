@@ -2,7 +2,7 @@
 
 **Purpose:** standalone pages inside a panel that aren't tied to a single Resource — dashboards, settings, wizards, reports, import/export workflows.
 
-> Resource-bound pages live under `app/Filament/Resources/{Model}Resource/Pages/`. See that directory's CLAUDE.md.
+> Resource-bound pages live under `app/Filament/Resources/{Models}/Pages/`. See that directory's CLAUDE.md.
 
 ## Where they live
 

@@ -67,7 +67,7 @@ final class OrderResource extends Resource
 
 ## Rules
 
-- **MUST** extract form, table, and infolist definitions into separate **Schema classes** under `app/Filament/Resources/{Model}Resource/Schemas/` and `.../Tables/` — Resource file stays thin. Inline builders are acceptable only for trivial resources (<3 fields).
+- **MUST** extract form, table, and infolist definitions into separate **Schema classes** under `app/Filament/Resources/{Models}/Schemas/` and `.../Tables/` — Resource file stays thin. Inline builders are acceptable only for trivial resources (<3 fields).
 - **MUST** declare `$recordTitleAttribute` for global search and breadcrumb labels.
 - **SHOULD** group resources via `$navigationGroup` once you have more than ~5 resources.
 - **MUST NOT** put business logic in the Resource — funnel through `app/Actions/`.

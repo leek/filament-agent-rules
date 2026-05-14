@@ -4,12 +4,14 @@
 
 ## Where they live
 
-Per-resource, under `app/Filament/Resources/{Parent}Resource/RelationManagers/`:
+Per-resource, under `app/Filament/Resources/{Parents}/RelationManagers/`:
 
 ```
-app/Filament/Resources/OrderResource/RelationManagers/
-├── ItemsRelationManager.php
-└── PaymentsRelationManager.php
+app/Filament/Resources/Orders/
+├── OrderResource.php
+└── RelationManagers/
+    ├── ItemsRelationManager.php
+    └── PaymentsRelationManager.php
 ```
 
 ## Naming

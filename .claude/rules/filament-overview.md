@@ -17,15 +17,17 @@ All rules below are **MUST** unless tagged **SHOULD** / **PREFER** / **AVOID**.
 
 | Class type            | Directory                                          | Naming                              |
 | --------------------- | -------------------------------------------------- | ----------------------------------- |
-| Resource              | `app/Filament/Resources/`                          | `{Model}Resource`                   |
-| Resource Pages        | `app/Filament/Resources/{Model}Resource/Pages/`    | `List{Models}`, `Create{Model}`, `Edit{Model}`, `View{Model}` |
-| Relation Managers     | `app/Filament/Resources/{Model}Resource/RelationManagers/` | `{Relation}RelationManager` |
-| Schemas (Form/Infolist) | `app/Filament/Resources/{Model}Resource/Schemas/` | `{Model}Form`, `{Model}Infolist`    |
-| Table definitions     | `app/Filament/Resources/{Model}Resource/Tables/`   | `{Models}Table`                     |
+| Resource              | `app/Filament/Resources/{Models}/`                 | `{Model}Resource`                   |
+| Resource Pages        | `app/Filament/Resources/{Models}/Pages/`           | `List{Models}`, `Create{Model}`, `Edit{Model}`, `View{Model}` |
+| Relation Managers     | `app/Filament/Resources/{Models}/RelationManagers/` | `{Relation}RelationManager`         |
+| Schemas (Form/Infolist) | `app/Filament/Resources/{Models}/Schemas/`       | `{Model}Form`, `{Model}Infolist`    |
+| Table definitions     | `app/Filament/Resources/{Models}/Tables/`          | `{Models}Table`                     |
 | Cluster               | `app/Filament/Clusters/`                           | `{Name}` (no suffix)                |
 | Custom Page           | `app/Filament/Pages/`                              | `{Name}` (no suffix)                |
 | Widget                | `app/Filament/Widgets/`                            | `{Name}Widget` / `{Name}Chart` / `{Name}Overview` |
 | PanelProvider         | `app/Providers/Filament/`                          | `{PanelId}PanelProvider`            |
+
+> The directory wrapping each resource is **plural** (e.g. `Orders/`), the class file inside it is **singular + Resource suffix** (`OrderResource.php`). This is the v4/v5 convention emitted by `php artisan make:filament-resource`. The pre-v4 flat layout (`app/Filament/Resources/OrderResource.php` + `OrderResource/` sibling directory) no longer applies.
 
 ## Discovery
 

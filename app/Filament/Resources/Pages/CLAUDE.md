@@ -4,14 +4,16 @@
 
 ## Where they live
 
-Each Resource owns its pages under `app/Filament/Resources/{Model}Resource/Pages/`:
+Each Resource owns its pages under `app/Filament/Resources/{Models}/Pages/`:
 
 ```
-app/Filament/Resources/OrderResource/Pages/
-├── ListOrders.php       extends ListRecords
-├── CreateOrder.php      extends CreateRecord
-├── ViewOrder.php        extends ViewRecord
-└── EditOrder.php        extends EditRecord
+app/Filament/Resources/Orders/
+├── OrderResource.php
+└── Pages/
+    ├── ListOrders.php       extends ListRecords
+    ├── CreateOrder.php      extends CreateRecord
+    ├── ViewOrder.php        extends ViewRecord
+    └── EditOrder.php        extends EditRecord
 ```
 
 ## Naming

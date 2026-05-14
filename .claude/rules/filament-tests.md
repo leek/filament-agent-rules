@@ -56,7 +56,7 @@ beforeEach(function () {
 
 ```php
 it('renders the list page', function () {
-    livewire(\App\Filament\Resources\OrderResource\Pages\ListOrders::class)
+    livewire(\App\Filament\Resources\Orders\Pages\ListOrders::class)
         ->assertSuccessful();
 });
 ```

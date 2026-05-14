@@ -14,12 +14,18 @@ alwaysApply: false
 
 ```
 app/Filament/Clusters/
-├── Commerce.php                  cluster definition
+├── Commerce.php                      cluster definition
 ├── Commerce/
 │   ├── Resources/
-│   │   ├── OrderResource.php
-│   │   ├── ProductResource.php
-│   │   └── CustomerResource.php
+│   │   ├── Orders/
+│   │   │   ├── OrderResource.php
+│   │   │   ├── Pages/
+│   │   │   ├── Schemas/
+│   │   │   └── Tables/
+│   │   ├── Products/
+│   │   │   └── ProductResource.php
+│   │   └── Customers/
+│   │       └── CustomerResource.php
 │   └── Pages/
 │       └── SalesReport.php
 ```

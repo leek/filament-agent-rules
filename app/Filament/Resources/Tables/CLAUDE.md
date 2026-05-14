@@ -4,11 +4,13 @@
 
 ## Where they live
 
-Per-resource, under `app/Filament/Resources/{Model}Resource/Tables/`:
+Per-resource, under `app/Filament/Resources/{Models}/Tables/`:
 
 ```
-app/Filament/Resources/OrderResource/Tables/
-└── OrdersTable.php
+app/Filament/Resources/Orders/
+├── OrderResource.php
+└── Tables/
+    └── OrdersTable.php
 ```
 
 ## Naming

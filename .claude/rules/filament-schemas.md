@@ -11,12 +11,14 @@ alwaysApply: false
 
 ## Where they live
 
-Per-resource, under `app/Filament/Resources/{Model}Resource/Schemas/`:
+Per-resource, under `app/Filament/Resources/{Models}/Schemas/`:
 
 ```
-app/Filament/Resources/OrderResource/Schemas/
-├── OrderForm.php
-└── OrderInfolist.php
+app/Filament/Resources/Orders/
+├── OrderResource.php
+└── Schemas/
+    ├── OrderForm.php
+    └── OrderInfolist.php
 ```
 
 ## Naming
