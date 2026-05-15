@@ -64,6 +64,57 @@ final class OrdersTable
 - **SHOULD** persist user state across reloads via `->persistFiltersInSession()` / `->persistSortInSession()` / `->persistSearchInSession()`. **AVOID** persisting search if it leaks across users on shared admin accounts.
 - **MUST** scope bulk actions with appropriate authorization — the policy is **not** auto-checked on bulk actions.
 
+## Per-column / per-filter extraction — `Tables/Columns/`, `Tables/Filters/`
+
+For a single heavily-configured column or filter, extract into its own class with a static `make()` returning one column/filter. Mirrors the `Schemas/Components/` pattern.
+
+```php
+// app/Filament/Resources/Customers/Tables/Columns/CustomerCountryColumn.php
+final class CustomerCountryColumn
+{
+    public static function make(): TextColumn
+    {
+        return TextColumn::make('country.name')
+            ->label('Country')
+            ->searchable(['country.name', 'country.iso_code'])
+            ->sortable()
+            ->badge()
+            ->color(fn (Customer $record) => $record->country?->is_eu ? 'info' : 'gray');
+    }
+}
+
+// app/Filament/Resources/Customers/Tables/Filters/CustomerCountryFilter.php
+final class CustomerCountryFilter
+{
+    public static function make(): SelectFilter
+    {
+        return SelectFilter::make('country_id')
+            ->relationship('country', 'name')
+            ->searchable()
+            ->preload()
+            ->multiple();
+    }
+}
+```
+
+Used in the table:
+
+```php
+$table
+    ->columns([
+        CustomerNameColumn::make(),
+        CustomerCountryColumn::make(),
+    ])
+    ->filters([
+        CustomerCountryFilter::make(),
+    ]);
+```
+
+- **MUST** return one column/filter from `make()`. For grouped columns (e.g. `Group::make([...])`), use a fragment returning `array` instead.
+- **MUST NOT** extend `TextColumn` / `SelectFilter` / etc. Wrap, don't subclass.
+- **SHOULD** extract when a column has >5 chained modifiers (badge + color callback + state + tooltip + copyable…), or appears in ≥2 tables (resource table + relation manager + widget).
+- **AVOID** extracting trivial columns (`TextColumn::make('reference')->searchable()`) — keeps the table file readable.
+
 ## Column types
 
 | Column         | Use for                                                  |

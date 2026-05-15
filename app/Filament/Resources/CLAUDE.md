@@ -67,10 +67,110 @@ final class OrderResource extends Resource
 
 ## Rules
 
-- **MUST** extract form, table, and infolist definitions into separate **Schema classes** under `app/Filament/Resources/{Models}/Schemas/` and `.../Tables/` — Resource file stays thin. Inline builders are acceptable only for trivial resources (<3 fields).
+- **MUST** extract form, table, and infolist definitions into separate classes under `app/Filament/Resources/{Models}/Schemas/` and `.../Tables/`. No "trivial resource" exception — extract from day one. See "Code Quality — extract everything" below.
 - **MUST** declare `$recordTitleAttribute` for global search and breadcrumb labels.
 - **SHOULD** group resources via `$navigationGroup` once you have more than ~5 resources.
 - **MUST NOT** put business logic in the Resource — funnel through `app/Actions/`.
+
+## Code Quality — extract everything
+
+Source: <https://filamentphp.com/docs/5.x/resources/code-quality-tips>. Treat as canonical.
+
+A Resource file should be a **wiring manifest**, not a definition. Form, table, infolist, action, column, filter, and component definitions all live in dedicated classes the Resource references. Goal: no Resource file longer than ~80 lines.
+
+### Per-resource layout
+
+```
+app/Filament/Resources/Customers/
+├── CustomerResource.php
+├── Pages/
+│   ├── ListCustomers.php
+│   ├── CreateCustomer.php
+│   ├── EditCustomer.php
+│   └── ViewCustomer.php
+├── Schemas/
+│   ├── CustomerForm.php              # configure(Schema): Schema
+│   ├── CustomerInfolist.php          # configure(Schema): Schema
+│   └── Components/
+│       ├── CustomerNameInput.php     # make(): TextInput
+│       └── CustomerCountrySelect.php # make(): Select
+├── Tables/
+│   ├── CustomersTable.php            # configure(Table): Table
+│   ├── Columns/
+│   │   ├── CustomerNameColumn.php    # make(): TextColumn
+│   │   └── CustomerCountryColumn.php # make(): TextColumn
+│   └── Filters/
+│       └── CustomerCountryFilter.php # make(): SelectFilter
+├── Actions/
+│   ├── EmailCustomerAction.php       # extends Action
+│   └── UpdateCustomerCountryBulkAction.php
+└── RelationManagers/
+    └── OrdersRelationManager.php
+```
+
+### Schema/Table class shape — `configure()` over inheritance
+
+```php
+final class CustomerForm
+{
+    public static function configure(Schema $schema): Schema
+    {
+        return $schema->components([
+            CustomerNameInput::make(),
+            CustomerCountrySelect::make(),
+        ]);
+    }
+}
+```
+
+- **MUST NOT** extend a parent class or interface on `*Form` / `*Infolist` / `*Table` classes. Filament docs deliberately leave them open so `configure()` can accept extra context args (`configure(Schema $schema, ?Customer $forCustomer = null)`) for reuse across panels / pages.
+- **MUST** make `configure()` `static`.
+
+### Per-component class shape — `make()` returns one component
+
+```php
+final class CustomerNameInput
+{
+    public static function make(): TextInput
+    {
+        return TextInput::make('name')
+            ->label('Full name')
+            ->required()
+            ->maxLength(255);
+    }
+}
+```
+
+```php
+final class CustomerCountryColumn
+{
+    public static function make(): TextColumn
+    {
+        return TextColumn::make('country.name')
+            ->searchable()
+            ->sortable()
+            ->badge();
+    }
+}
+```
+
+Then in the schema/table:
+
+```php
+->components([CustomerNameInput::make(), CustomerCountrySelect::make()])
+->columns([CustomerNameColumn::make(), CustomerCountryColumn::make()])
+->filters([CustomerCountryFilter::make()])
+```
+
+### When to extract a component
+
+- **MUST** extract once a single component crosses ~5 chained modifiers, or is reused in ≥2 schemas/tables.
+- **SHOULD** extract immediately for fields with non-obvious config (rules, custom validation messages, masked input, conditional visibility) — keeps the schema scannable.
+- **AVOID** extracting trivial one-liner components (`TextInput::make('name')->required()`) — the indirection cost outweighs the win.
+
+### Action classes — reusable across surfaces
+
+A single extracted Action class drops into header, row, and bulk surfaces with no duplication. See `app/Filament/Actions/CLAUDE.md` for the class shape; see the "Reusable across surfaces" example there for usage.
 
 ## Eager loading — `getEloquentQuery()`
 

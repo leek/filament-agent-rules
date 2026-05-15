@@ -107,6 +107,60 @@ Select::make('customer_id')
 
 **MUST** call `->preload()` only on small relations (<200 rows). For larger sets, leave the async search behavior.
 
+## Per-component extraction — `Schemas/Components/`
+
+For a single heavily-configured field, extract into its own class with a static `make()` returning one component. Lives under `Schemas/Components/` per resource.
+
+```php
+// app/Filament/Resources/Customers/Schemas/Components/CustomerNameInput.php
+final class CustomerNameInput
+{
+    public static function make(): TextInput
+    {
+        return TextInput::make('name')
+            ->label('Full name')
+            ->required()
+            ->maxLength(255)
+            ->rules(['regex:/^[\pL\s\-\.]+$/u'])
+            ->validationMessages(['regex' => 'Letters, spaces, hyphens, and periods only.']);
+    }
+}
+
+// app/Filament/Resources/Customers/Schemas/Components/CustomerCountrySelect.php
+final class CustomerCountrySelect
+{
+    public static function make(): Select
+    {
+        return Select::make('country_id')
+            ->relationship('country', 'name')
+            ->searchable(['name', 'iso_code'])
+            ->preload()
+            ->required();
+    }
+}
+```
+
+Used in the form:
+
+```php
+$schema->components([
+    CustomerNameInput::make(),
+    CustomerCountrySelect::make(),
+]);
+```
+
+- **MUST** return one component from `make()` (`TextInput`, `Select`, etc.). For a cluster of fields, use the fragment pattern below — different shape, different purpose.
+- **MUST NOT** extend `TextInput` / `Select` / etc. Wrap, don't subclass — Filament component classes use static factories.
+- **SHOULD** extract when a field has >5 chained modifiers, custom rules, conditional visibility, or appears in ≥2 schemas.
+- **PREFER** parameterising over duplicating: `CustomerNameInput::make(label: 'Billing contact')` for one-off labels.
+
+### Component vs fragment — pick by return type
+
+| Pattern              | Returns           | Use when                                                  |
+| -------------------- | ----------------- | --------------------------------------------------------- |
+| Component (`Components/`) | one component   | single field, heavy config, reused or scannability win   |
+| Fragment (below)     | `array` of components | logical cluster (contact info, address, audit metadata) |
+
 ## Reusable schema fragments
 
 Share field clusters across multiple resources without inheritance — return an array from a static method and spread it:

@@ -125,6 +125,41 @@ Usage stays one line at the call site:
 ApproveAction::make()
 ```
 
+### Reusable across surfaces
+
+A single extracted Action class drops into header, row, and bulk surfaces with no duplication. Same `::make()` call site, Filament infers the context:
+
+```php
+// On the List page (header)
+protected function getHeaderActions(): array
+{
+    return [
+        EmailCustomerAction::make(),
+    ];
+}
+
+// On the resource table (per row)
+$table->recordActions([
+    EmailCustomerAction::make(),
+]);
+
+// On the resource table (bulk variant)
+$table->toolbarActions([
+    BulkActionGroup::make([
+        UpdateCustomerCountryBulkAction::make(),
+    ]),
+]);
+
+// On a relation manager's table
+$table->headerActions([
+    EmailCustomerAction::make(),
+]);
+```
+
+- **MUST** extract the moment an action appears in ≥2 surfaces. Inline duplication drifts — the row-action `->visible(...)` and the header-action `->visible(...)` will diverge silently.
+- **MUST** keep `setUp()` free of surface-specific assumptions (e.g. don't assume `$record` exists — header actions don't have one). Branch on `$this->getRecord()` if behaviour must vary.
+- **SHOULD** ship one bulk variant per record action (`EmailCustomerAction` + `EmailCustomersBulkAction`) when bulk is meaningful — bulk classes extend `BulkAction`, not `Action`.
+
 ## Halting / cancelling
 
 Inside an `->action(...)` callback, bail out cleanly with `$action->halt()` or `Action::cancel()`:

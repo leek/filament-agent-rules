@@ -14,7 +14,10 @@ All rules below are **MUST** unless tagged **SHOULD** / **PREFER** / **AVOID**.
 | Resource Pages        | `app/Filament/Resources/{Models}/Pages/`           | `List{Models}`, `Create{Model}`, `Edit{Model}`, `View{Model}` |
 | Relation Managers     | `app/Filament/Resources/{Models}/RelationManagers/` | `{Relation}RelationManager`         |
 | Schemas (Form/Infolist) | `app/Filament/Resources/{Models}/Schemas/`       | `{Model}Form`, `{Model}Infolist`    |
+| Schema components     | `app/Filament/Resources/{Models}/Schemas/Components/` | `{Model}{Field}Input` / `{Model}{Field}Select` (e.g. `CustomerNameInput`) |
 | Table definitions     | `app/Filament/Resources/{Models}/Tables/`          | `{Models}Table`                     |
+| Table columns         | `app/Filament/Resources/{Models}/Tables/Columns/`  | `{Model}{Field}Column` (e.g. `CustomerCountryColumn`) |
+| Table filters         | `app/Filament/Resources/{Models}/Tables/Filters/`  | `{Model}{Field}Filter` (e.g. `CustomerStatusFilter`) |
 | Cluster               | `app/Filament/Clusters/`                           | `{Name}` (no suffix)                |
 | Custom Page           | `app/Filament/Pages/`                              | `{Name}` (no suffix)                |
 | Widget                | `app/Filament/Widgets/`                            | `{Name}Widget` / `{Name}Chart` / `{Name}Overview` |
