@@ -1,3 +1,10 @@
+---
+description: Filament UI Actions — extracted action classes and inline action usage (modals, bulk, wizard, Importer/Exporter, notifications)
+globs:
+  - app/Filament/Resources/**/Actions/*.php
+alwaysApply: false
+---
+
 # Filament Actions
 
 **Purpose:** UI Actions — buttons, table row actions, header actions, bulk actions, modals. Configured via fluent builder, rendered as buttons that may open a modal, run a callback, or redirect.

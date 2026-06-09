@@ -1,3 +1,10 @@
+---
+description: Dashboard widgets (stats, charts, table widgets, custom Blade widgets)
+globs:
+  - app/Filament/Resources/**/Widgets/*.php
+alwaysApply: false
+---
+
 # Widgets
 
 **Purpose:** dashboard cards — stats, charts, recent-records tables. Appear on the panel Dashboard and (optionally) on Resource list pages.

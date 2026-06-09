@@ -1,3 +1,10 @@
+---
+description: Relation managers attached to a parent Resource (HasMany, BelongsToMany, MorphMany)
+globs:
+  - app/Filament/Resources/**/RelationManagers/*.php
+alwaysApply: false
+---
+
 # Relation Managers
 
 **Purpose:** manage a model's related records (HasMany, BelongsToMany, MorphMany) from inside the parent's Edit/View page, without leaving for the related Resource.

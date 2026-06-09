@@ -1,3 +1,10 @@
+---
+description: Resource page classes (ListRecords / CreateRecord / EditRecord / ViewRecord) and lifecycle hooks
+globs:
+  - app/Filament/Resources/**/Pages/*.php
+alwaysApply: false
+---
+
 # Resource Pages
 
 **Purpose:** the actual Livewire pages backing each Resource route (`index`, `create`, `view`, `edit`, plus any custom pages).
@@ -28,7 +35,7 @@ app/Filament/Resources/Orders/
 
 - **MUST** keep page classes thin. They wire actions, lifecycle hooks, and redirects — nothing else.
 - **MUST** delegate non-trivial work to an `app/Actions/` class.
-- **SHOULD** override `getHeaderActions()` to add row-less actions on List pages, and `getActions()` on View/Edit pages.
+- **SHOULD** override `getHeaderActions()` to add row-less actions on List pages and per-record actions on View/Edit pages.
 
 ## Lifecycle hooks (Create / Edit)
 

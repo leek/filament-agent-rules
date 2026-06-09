@@ -1,3 +1,10 @@
+---
+description: Filament Resource classes (form/table/infolist wiring, eager loading, global search, authorization)
+globs:
+  - app/Filament/Resources/**/*Resource.php
+alwaysApply: false
+---
+
 # Resources
 
 **Purpose:** CRUD UI for a single Eloquent model inside a Filament panel.

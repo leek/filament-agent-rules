@@ -20,7 +20,7 @@ All rules below are **MUST** unless tagged **SHOULD** / **PREFER** / **AVOID**.
 | Table filters         | `app/Filament/Resources/{Models}/Tables/Filters/`  | `{Model}{Field}Filter` (e.g. `CustomerStatusFilter`) |
 | Cluster               | `app/Filament/Clusters/`                           | `{Name}` (no suffix)                |
 | Custom Page           | `app/Filament/Pages/`                              | `{Name}` (no suffix)                |
-| Widget                | `app/Filament/Widgets/`                            | `{Name}Widget` / `{Name}Chart` / `{Name}Overview` |
+| Widget                | `app/Filament/Widgets/`                            | `{Name}Widget` / `{Name}Chart` / `{Name}Overview` / `Latest{Models}` (table widgets) |
 | PanelProvider         | `app/Providers/Filament/`                          | `{PanelId}PanelProvider`            |
 
 > The directory wrapping each resource is **plural** (e.g. `Orders/`), the class file inside it is **singular + Resource suffix** (`OrderResource.php`). This is the v4/v5 convention emitted by `php artisan make:filament-resource`. The pre-v4 flat layout (`app/Filament/Resources/OrderResource.php` + `OrderResource/` sibling directory) no longer applies.

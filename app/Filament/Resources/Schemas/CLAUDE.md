@@ -1,3 +1,10 @@
+---
+description: Reusable Form and Infolist schema classes (declarative component trees, state callbacks)
+globs:
+  - app/Filament/Resources/**/Schemas/*.php
+alwaysApply: false
+---
+
 # Schemas (Forms + Infolists)
 
 **Purpose:** declarative component trees for editing (Form) and viewing (Infolist) records. Both share the same `Schema` base class in Filament v4+.

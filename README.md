@@ -56,9 +56,9 @@ Each agent picks up the rules colocated with the file it's editing — no centra
 
 ### Claude glob-based rules (`.claude/rules/*.md`)
 
-In addition to the per-directory `CLAUDE.md` files, this repo ships a `.claude/rules/` directory containing the same content with `globs:` frontmatter. Filament projects often deviate from the stock layout — domain-grouped resources like `app/Filament/Resources/Shop/Products/Pages/...` won't match a strict per-directory CLAUDE.md, but a glob like `app/Filament/Resources/**/Pages/*.php` catches them all.
+In addition to the per-directory `CLAUDE.md` files, this repo ships a `.claude/rules/` directory that applies the same rules by glob. Filament projects often deviate from the stock layout — domain-grouped resources like `app/Filament/Resources/Shop/Products/Pages/...` won't match a strict per-directory CLAUDE.md, but a glob like `app/Filament/Resources/**/Pages/*.php` catches them all.
 
-The `.claude/rules/` files copy the canonical CLAUDE.md content and add Cursor-style frontmatter:
+Each `.claude/rules/*.md` is a **symlink** to its canonical `CLAUDE.md`, so the two can never drift — edit the per-directory file and both surfaces update. To make this work, the Cursor-style frontmatter lives at the top of the canonical file itself:
 
 ```yaml
 ---
@@ -69,7 +69,9 @@ alwaysApply: false
 ---
 ```
 
-Both systems coexist: the per-dir `CLAUDE.md` is the source of truth, and `.claude/rules/*.md` mirrors it for dynamic glob matching. Edit the per-dir file; `.claude/rules/` regenerates from it.
+Agents that read `CLAUDE.md` / `AGENTS.md` directly see this frontmatter block as inert text and ignore it.
+
+Only the seven resource-scoped rule types have glob rules. The rest (`app/Filament/CLAUDE.md`, `Clusters/`, `Pages/`, `app/Providers/Filament/`, `tests/Feature/Filament/`, `resources/css/filament/`) live at fixed paths that don't vary with domain grouping, so the per-directory `CLAUDE.md` already matches and a glob rule would be redundant.
 
 ## What you get
 
@@ -86,6 +88,7 @@ Both systems coexist: the per-dir `CLAUDE.md` is the source of truth, and `.clau
 | `app/Filament/Widgets/CLAUDE.md`                  | Stats / Chart / Table widgets, polling, lazy loading                       |
 | `app/Filament/Actions/CLAUDE.md`                  | Action plumbing: forms inside actions, modals, bulk, requires-confirmation |
 | `app/Providers/Filament/CLAUDE.md`                | PanelProvider: discovery, middleware, multi-panel, tenancy                 |
+| `resources/css/filament/CLAUDE.md`                | Theme CSS: tokens, vendor override mapping, build step                     |
 | `tests/Feature/Filament/CLAUDE.md`                | Pest + Livewire tests: pages, forms, tables, actions, authorization        |
 
 ## Companion

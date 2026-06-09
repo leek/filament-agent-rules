@@ -1,3 +1,10 @@
+---
+description: Reusable Table schema classes (columns, filters, recordActions, toolbarActions)
+globs:
+  - app/Filament/Resources/**/Tables/*.php
+alwaysApply: false
+---
+
 # Tables
 
 **Purpose:** the index view of a Resource (or a relation manager / table widget). Declarative columns + filters + actions.
