@@ -1,7 +1,7 @@
 ---
 description: Reusable Form and Infolist schema classes (declarative component trees, state callbacks)
 globs:
-  - app/Filament/Resources/**/Schemas/*.php
+  - app/Filament/**/Schemas/*.php
 alwaysApply: false
 ---
 

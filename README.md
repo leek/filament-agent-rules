@@ -56,7 +56,7 @@ Each agent picks up the rules colocated with the file it's editing — no centra
 
 ### Claude glob-based rules (`.claude/rules/*.md`)
 
-In addition to the per-directory `CLAUDE.md` files, this repo ships a `.claude/rules/` directory that applies the same rules by glob. Filament projects often deviate from the stock layout — domain-grouped resources like `app/Filament/Resources/Shop/Products/Pages/...` won't match a strict per-directory CLAUDE.md, but a glob like `app/Filament/Resources/**/Pages/*.php` catches them all.
+In addition to the per-directory `CLAUDE.md` files, this repo ships a `.claude/rules/` directory that applies the same rules by glob. Filament projects often deviate from the stock layout — domain-grouped resources like `app/Filament/Resources/Shop/Products/Pages/...` or multi-panel layouts like `app/Filament/Admin/Resources/...` won't match a strict per-directory CLAUDE.md, but a glob like `app/Filament/**/Pages/*.php` catches them all.
 
 Each `.claude/rules/*.md` is a **symlink** to its canonical `CLAUDE.md`, so the two can never drift — edit the per-directory file and both surfaces update. To make this work, the Cursor-style frontmatter lives at the top of the canonical file itself:
 
@@ -64,7 +64,7 @@ Each `.claude/rules/*.md` is a **symlink** to its canonical `CLAUDE.md`, so the 
 ---
 description: Resource page classes (lifecycle hooks)
 globs:
-  - app/Filament/Resources/**/Pages/*.php
+  - app/Filament/**/Pages/*.php
 alwaysApply: false
 ---
 ```

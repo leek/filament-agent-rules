@@ -1,7 +1,7 @@
 ---
 description: Filament Resource classes (form/table/infolist wiring, eager loading, global search, authorization)
 globs:
-  - app/Filament/Resources/**/*Resource.php
+  - app/Filament/**/*Resource.php
 alwaysApply: false
 ---
 
