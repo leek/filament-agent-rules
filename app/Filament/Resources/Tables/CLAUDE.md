@@ -273,11 +273,23 @@ ImageColumn::make('logo')->defaultImageUrl(asset('placeholder.svg')); // fallbac
 
 ## Empty state
 
+Filament ships a generic empty state (a faded icon + "No records"), but it reads as a bug, not a designed state. **MUST** give every table a full empty state — heading **and** description **and** icon — and an action when one makes sense.
+
 ```php
+->emptyStateIcon(Heroicon::OutlinedShoppingCart)
 ->emptyStateHeading('No orders yet')
-->emptyStateDescription('Create your first order to get started.')
-->emptyStateActions([CreateAction::make()])
+->emptyStateDescription('Orders placed by customers will appear here. Create one to get started.')
+->emptyStateActions([
+    CreateAction::make()
+        ->visible(fn () => auth()->user()?->can('create', Order::class)),
+])
 ```
+
+- **MUST** set all three of `->emptyStateHeading()`, `->emptyStateDescription()`, `->emptyStateIcon()`. A heading alone is not enough — the description tells the admin *why* it's empty and *what to do*.
+- **SHOULD** pick an `emptyStateIcon` that matches the model (reuse the resource's nav icon) so the empty table still reads as "Orders."
+- **SHOULD** add `->emptyStateActions([CreateAction::make()])` when the admin can act from here — but gate it on the policy so you don't dangle a button they can't use.
+- **PREFER** distinguishing "never had any" from "filtered to nothing": when the table is filtered, an `emptyStateHeading` like "No orders match these filters" with a description nudging the admin to clear filters beats the generic create prompt. Branch with a closure reading the active filters/`$livewire` if the distinction matters.
+- This rule applies equally to **relation manager** tables and **table widgets** — same `emptyState*` methods, same bar. Use `->emptyStateActions([])` to suppress the default create button on read-only relations.
 
 ## v5+ notes
 

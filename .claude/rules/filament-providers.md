@@ -1,0 +1,1 @@
+../../app/Providers/Filament/CLAUDE.md

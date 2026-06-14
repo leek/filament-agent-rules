@@ -39,6 +39,8 @@ Action::make('approve')
     ->requiresConfirmation()
     ->modalHeading('Approve order?')
     ->modalDescription(fn (Order $record) => "Approve order #{$record->reference}?")
+    ->modalIcon(Heroicon::OutlinedCheckCircle)
+    ->modalIconColor('success')
     ->action(fn (Order $record) => app(ApproveOrderAction::class)->run($record))
     ->after(fn () => Notification::make()->success()->title('Approved')->send());
 ```
@@ -46,6 +48,7 @@ Action::make('approve')
 ## Rules
 
 - **MUST** call `->requiresConfirmation()` on any destructive or irreversible action.
+- **MUST** set `->modalIcon(...)` + `->modalIconColor(...)` on any action that opens a modal or slide-over (confirmation, form, or wizard) — a bare modal looks unfinished. Pick an icon that matches the action and a color that matches intent (`danger` for destructive, `success` for confirm-positive, `warning` for risky, `primary` otherwise). See "Modal icon + color" below. **Skip only when the project already sets these globally via `configureUsing` — check the `FilamentServiceProvider` first (see `app/Providers/Filament/CLAUDE.md`).**
 - **MUST** delegate work via `->action(fn ($record) => app(SomeAction::class)->run($record))` — never write the business logic inline. Filament Actions are presentational glue.
 - **MUST** use `->visible(...)` / `->hidden(...)` (or `->authorize('ability', $record)`) to hide actions the policy denies. Showing-but-failing creates a confused admin.
 - **SHOULD** pair every long-running action with a `Notification` in `->after(...)` so the admin gets explicit success/failure feedback.
@@ -192,6 +195,36 @@ Inside an `->action(...)` callback, bail out cleanly with `$action->halt()` or `
 ```
 
 - **PREFER** `->slideOver()` for forms with >5 fields — feels less cramped on wide screens.
+
+## Modal icon + color
+
+Every modal/slide-over action **MUST** carry a `modalIcon` and `modalIconColor`. The icon anchors the modal visually; the color signals intent before the admin reads a word.
+
+```php
+DeleteAction::make()
+    ->modalIcon(Heroicon::OutlinedTrash)
+    ->modalIconColor('danger');
+
+Action::make('approve')
+    ->modalIcon(Heroicon::OutlinedCheckCircle)
+    ->modalIconColor('success')
+    ->modalHeading('Approve order?');
+
+Action::make('export')
+    ->modalIcon(Heroicon::OutlinedArrowDownTray)
+    ->modalIconColor('primary');
+```
+
+| Intent                         | `modalIconColor` |
+| ------------------------------ | ---------------- |
+| Destructive (delete, detach)   | `danger`         |
+| Confirm-positive (approve, publish) | `success`   |
+| Risky / reversible-with-effort | `warning`        |
+| Neutral (edit, export, view)   | `primary`        |
+
+- **MUST** match `modalIconColor` to intent, not to the trigger button's color — a `gray` "More" button can still open a `danger` delete confirmation.
+- **SHOULD** reuse the model's icon for create/edit modals (e.g. an Order modal uses the same icon as the Order resource nav) so the modal reads as "an Order thing."
+- **MUST NOT** repeat these per-action if the project sets them globally (e.g. `DeleteAction::configureUsing(...)` in the `FilamentServiceProvider`). Read the provider before adding — don't fight a global default. See `app/Providers/Filament/CLAUDE.md`.
 
 ## Wizard (multi-step) action
 

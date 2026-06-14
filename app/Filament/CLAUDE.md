@@ -6,6 +6,15 @@ Targets **Filament v4 + v5**. v5 (Livewire 4 bump, Jan 2026) renames several pub
 
 All rules below are **MUST** unless tagged **SHOULD** / **PREFER** / **AVOID**.
 
+## Global defaults — never assume stock Filament behavior
+
+A project frequently overrides Filament's defaults **globally** via `configureUsing()` — usually in `app/Providers/FilamentServiceProvider.php`, sometimes a `PanelProvider` or `AppServiceProvider::boot()`. These overrides change how *every* component behaves: e.g. all action modals open as `->slideOver()`, every `Select` is `->native(false)->searchable()`, tables paginate at 25, dates render in a house format, labels are translated.
+
+- **MUST** read the project's global Filament configuration **before building or reviewing any component**. Open the `FilamentServiceProvider` (and the active `PanelProvider`) and note every `configureUsing` block. Assuming stock defaults produces code that fights the house style.
+- **MUST NOT** re-declare a value the project already sets globally — redundant at best, drift at worst (the local copy and the global default silently diverge). If `DeleteAction` is globally `->slideOver()->modalIconColor('danger')`, don't repeat it per action.
+- **SHOULD** lift any setting you find yourself repeating across ≥3 components UP into a `configureUsing` block instead of copying it.
+- See `app/Providers/Filament/CLAUDE.md` → "Global defaults via `configureUsing`" for the catalog of what's commonly configured and how to write these blocks.
+
 ## Where things live
 
 | Class type            | Directory                                          | Naming                              |

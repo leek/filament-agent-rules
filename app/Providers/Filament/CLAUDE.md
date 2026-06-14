@@ -1,6 +1,88 @@
-# PanelProvider
+---
+description: Filament providers — PanelProvider bootstrapping (discovery, theme, middleware, plugins, tenancy, auth) and app-wide component defaults via configureUsing in the FilamentServiceProvider
+globs:
+  - app/Providers/Filament/*.php
+  - app/Providers/FilamentServiceProvider.php
+alwaysApply: false
+---
 
-**Purpose:** boot a Filament panel — discovery paths, theme, middleware, plugins, tenancy, auth, navigation.
+# Filament Providers — Panels & Global Configuration
+
+**Purpose:** two distinct providers, both covered here.
+- **`{PanelId}PanelProvider`** (`app/Providers/Filament/`) — boots a panel: discovery paths, theme, middleware, plugins, tenancy, auth, navigation.
+- **`FilamentServiceProvider`** (`app/Providers/FilamentServiceProvider.php`) — registers **app-wide component defaults** via `configureUsing()`.
+
+## Global defaults via `configureUsing`
+
+Filament components ship with stock defaults. A project overrides them **once, globally** — not per call site — by calling `Component::configureUsing()` in a service provider's `boot()`, conventionally a dedicated `app/Providers/FilamentServiceProvider.php` (registered in `bootstrap/providers.php`).
+
+```php
+public function boot(): void
+{
+    // Every Select across the app: non-native, searchable when it's a relationship.
+    Select::configureUsing(function (Select $select): void {
+        $select
+            ->native(false)
+            ->searchable(fn (Select $c) => $c->hasRelationship())
+            ->preload(fn (Select $c) => $c->isSearchable());
+    });
+
+    // Every Table: striped, 25/page, persist UI state.
+    Table::configureUsing(function (Table $table): void {
+        $table
+            ->striped()
+            ->defaultPaginationPageOption(25)
+            ->paginated([25, 50, 100])
+            ->persistFiltersInSession()
+            ->persistSortInSession();
+    });
+}
+```
+
+`configureUsing` runs for **every** instance created afterwards. Set a value here and you never repeat it at a call site — and an agent that doesn't know it's set will either duplicate it or be surprised by behavior that isn't in the schema/table/action file.
+
+### What projects commonly configure (one project's choices — illustrative, not a mandate)
+
+This is a real `FilamentServiceProvider` boot block, abridged. Treat it as a **map of what to look for**, not a spec to copy — every project picks differently. Per the hub rule, your job is to *detect* what a given project has set, not to impose these.
+
+```php
+// Modals: everything is a slide-over EXCEPT confirmation dialogs and attach/associate.
+Action::configureUsing(fn (Action $a) => $a->bootUsing(function () use ($a): void {
+    if (! $a->isConfirmationRequired() && ! $a instanceof AttachAction && ! $a instanceof AssociateAction) {
+        $a->slideOver();
+    }
+}));
+
+// Default action icons + behavior, so call sites stay clean.
+ViewAction::configureUsing(fn (ViewAction $a) => $a->icon(Heroicon::OutlinedEye));
+EditAction::configureUsing(fn (EditAction $a) => $a->icon(Heroicon::OutlinedPencil));
+DeleteAction::configureUsing(fn (DeleteAction $a) => $a->icon(Heroicon::OutlinedTrash));
+CreateAction::configureUsing(fn (CreateAction $a) => $a->createAnother(false)->slideOver());
+
+// Field defaults.
+TextInput::configureUsing(fn (TextInput $c) => $c->trim());
+Textarea::configureUsing(fn (Textarea $c) => $c->rows(4));
+DateTimePicker::configureUsing(fn (DateTimePicker $c) => $c->seconds(false));
+FileUpload::configureUsing(fn (FileUpload $c) => $c->moveFiles());
+
+// Destructive Repeater/Builder rows confirm before delete.
+Repeater::configureUsing(fn (Repeater $c) => $c->deleteAction(fn (Action $a) => $a->requiresConfirmation()));
+
+// House date/time display formats, read from a translation file.
+Schema::configureUsing(fn (Schema $s) => $s
+    ->defaultDateDisplayFormat(__('app.date_format'))
+    ->defaultDateTimeDisplayFormat(__('app.datetime_format')));
+```
+
+Common knobs to scan for: modal presentation (`slideOver`), `Select` native/searchable/preload, table pagination + persistence + striping, default action icons + `modalIcon`/`modalIconColor`, `createAnother(false)`, date/time formats, `translateLabel()`, `Textarea` rows, `FileUpload` disk/visibility/`moveFiles`, `Repeater`/`Builder` delete confirmation.
+
+### Rules
+
+- **MUST** read this provider before building or reviewing any Filament component — see the hub rule in `app/Filament/CLAUDE.md`. The schema/table/action file you're editing is only half the behavior; the other half lives here.
+- **MUST** establish an app-wide default **once** here rather than copying it onto every component. One `Select::configureUsing(...)` beats 50 `->native(false)` calls.
+- **PREFER** `bootUsing(...)` inside `configureUsing` for defaults that depend on the component's own state (e.g. "slide over unless it's a confirmation") — it runs after setup, so `isConfirmationRequired()` etc. are reliable.
+- **MUST NOT** put per-record or per-user logic in `configureUsing` — it runs for every instance with no record context. Record-aware defaults belong at the call site (closures) or in the schema class.
+- **AVOID** `configureUsing` for a one-off — if only one `Textarea` needs 8 rows, set it on that field, not globally.
 
 ## Where they live
 
