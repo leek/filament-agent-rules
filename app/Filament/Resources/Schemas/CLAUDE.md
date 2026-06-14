@@ -413,6 +413,48 @@ $schema->components([
 
 Use on `CreateRecord` pages; on Edit pages, prefer Tabs.
 
+## Prime components — arbitrary content without Blade
+
+Prime components render *arbitrary* content directly in a schema (form, infolist, or page) — no Blade view required. Reach for these before hand-writing markup. They live in `Filament\Schemas\Components\*`.
+
+| Prime | Renders | Key methods |
+| ----- | ------- | ----------- |
+| `Text` | a string, `HtmlString`, or inline Markdown | `->color()`, `->badge()`, `->size(TextSize::…)`, `->weight(FontWeight::…)`, `->fontFamily(FontFamily::…)`, `->tooltip()`, `->js()` |
+| `Icon` | a `Heroicon` (or icon string) | `->color()`, `->size(IconSize::…)`, `->tooltip()` |
+| `Image` | an image by URL | `->imageWidth()` / `->imageHeight()` / `->imageSize()`, `->alignCenter()`, `->tooltip()` |
+| `UnorderedList` | a bullet list of strings or `Text` items | `->size(TextSize::…)` |
+
+```php
+use Filament\Schemas\Components\{Text, Icon, Image, UnorderedList};
+use Filament\Support\Enums\{TextSize, FontWeight};
+use Filament\Support\Icons\Heroicon;
+use Illuminate\Support\HtmlString;
+
+Section::make('Permissions')->schema([
+    Text::make('Modifying these permissions may expose sensitive data.')
+        ->color('warning')
+        ->weight(FontWeight::Bold),
+
+    Text::make(new HtmlString('Read the <a href="/docs" class="underline">policy guide</a> first.')),
+
+    UnorderedList::make([
+        'Admins can edit every record.',
+        'Editors can edit their own.',
+        'Viewers are read-only.',
+    ]),
+
+    Image::make(url: asset('images/permissions-matrix.png'), alt: 'Permission matrix')
+        ->imageWidth('20rem'),
+
+    Icon::make(Heroicon::ShieldCheck)->color('success')->tooltip('Audited'),
+]),
+```
+
+- **MUST** use a prime over a custom Blade view or a `Placeholder` with raw HTML for static or computed display content. Primes are themed, dark-mode-aware, and support utility injection (`->color(fn ($record) => ...)`).
+- **MUST NOT** confuse a prime with an infolist **entry**: entries (`TextEntry`, `IconEntry`, …) render a labeled *field of the record* (a `<dl>` row); primes render free content not tied to a model attribute. Use a `TextEntry` for "Customer: Acme", a `Text` for "These changes are irreversible."
+- **PREFER** `Text::make(<<<'JS' ... JS)->js()` for content that depends on live form state but needs no PHP — it updates client-side, like the other `*Js` methods (see "Reactivity & rendering").
+- For inline HTML wrap the string in `HtmlString`; for Markdown use `str(...)->inlineMarkdown()->toHtmlString()`. Both still go through `Text`, never a Blade partial.
+
 ## Callout — inline info / warning blocks
 
 Reach for the `Callout` schema component for any inline info, tip, warning, or error block inside a form or infolist. **MUST NOT** hand-roll this with a custom Blade view, a `Placeholder`, or raw HTML — `Callout` already handles status colors, icons, dark mode, and footer actions.
@@ -480,6 +522,7 @@ final class OrderInfolist
 - **MUST** eager-load relations referenced via dot-notation (`customer.name`) or by `RepeatableEntry::make('items')` on the Resource's `getEloquentQuery()` — same N+1 risk as table columns.
 - **SHOULD** use `Split::make([...])` with a main `Group` + sidebar `Group` for view pages that mix long-form content (description, comments) with metadata (status, dates).
 - **PREFER** `TextEntry::make(...)->badge()` over `IconEntry` for enum status — badges include the label text, which is more scannable than an icon alone.
+- **SHOULD** use a **prime component** (`Text`/`Icon`/`Image`/`UnorderedList`) for content not bound to a record attribute — section intros, instructions, computed notes. Entries are for record fields; don't abuse a `TextEntry` with a hardcoded string. See "Prime components".
 
 ## v5+ notes
 

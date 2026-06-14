@@ -126,7 +126,7 @@ final class RevenueChart extends ChartWidget
 
 ## Custom widget (Blade view)
 
-When the stats / chart / table widgets don't fit, drop down to a plain `Widget` with a Blade view:
+A Blade-backed widget is the **last** resort — see the hub's "Prefer built-in components over custom Blade" ladder. First confirm a stats / chart / table widget can't do it, and that the content isn't just `Text`/`Icon`/`Image`/`UnorderedList` primes or a `Callout` rendered through a schema. Only when the markup is genuinely bespoke, drop down to a plain `Widget` with a Blade view:
 
 ```php
 final class TasksWidget extends Widget

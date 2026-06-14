@@ -59,6 +59,21 @@ Action::make('approve')
 
 Filament leans heavily on fluent builders inside static methods (`form(Schema $schema)`, `table(Table $table)`, `infolist(Schema $schema)`). Override the builder method on the Resource/Page/Widget — don't subclass framework classes.
 
+## Prefer built-in components over custom Blade
+
+Filament renders almost any UI declaratively. A custom Blade view is the **last** resort, not the first — it skips Filament's theming, dark mode, spacing, and state handling, and rots out of sync with the rest of the panel. Before writing a `->view(...)`, a `ViewField`/`ViewEntry`, a custom-view schema component, or a Blade-backed `Widget`, walk this ladder and stop at the first rung that works:
+
+1. **A built-in field / column / entry** — `TextInput`, `Select`, `TextColumn`, `TextEntry`, `IconColumn`, `ImageEntry`, … for record data.
+2. **A prime component** — `Text`, `Icon`, `Image`, `UnorderedList` (`Filament\Schemas\Components\*`) for *arbitrary* content (headings, notes, computed text, logos, bullet lists) in any schema. See `app/Filament/Resources/Schemas/CLAUDE.md` → "Prime components".
+3. **A `Callout`** — for an info / warning / error block (Schemas → "Callout").
+4. **A composition of the above** inside `Section` / `Grid` / `Fieldset` / `Split` — most "custom" layouts are just built-ins on a grid.
+5. **A custom component class** that returns a configured built-in (the `make()` pattern) — for reusable heavy config.
+6. **Custom Blade** (`->view(...)`, `ViewField`, `ViewEntry`, a `Widget` view) — only when the markup is genuinely bespoke (a third-party embed, a hand-built chart, a non-Filament layout).
+
+- **MUST** exhaust rungs 1–5 before dropping to Blade. "I'll just make a quick Blade view" is how a panel ends up with a dozen unthemed one-off partials.
+- **MUST**, when you do reach rung 6, wrap the markup in Filament's wrappers (`<x-filament::section>`, `<x-filament-widgets::widget>`, `<x-filament-panels::page>`) so theming and dark mode still apply.
+- **PREFER** extracting a reusable custom **component class** (rung 5) over copying a Blade partial — it composes with a schema like any other component.
+
 ## Enums for status / type / category
 
 Back every status, type, or category column with a PHP enum that implements the Filament presentation contracts. One enum drives the form select, the table badge, the infolist entry, and the policy guard — no parallel `match` blocks to keep in sync.

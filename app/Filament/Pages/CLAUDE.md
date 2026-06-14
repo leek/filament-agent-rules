@@ -123,6 +123,9 @@ final class ImportProducts extends Page implements HasForms
 </x-filament-panels::page>
 ```
 
+- **MUST** keep the page Blade thin — render `{{ $this->form }}`, a schema, or `<x-filament-widgets::widgets />`, not bespoke markup. Build the page body from a Schema of built-in **components + prime components** (`Text`/`Icon`/`Image`/`UnorderedList`) rather than hand-written HTML. See the hub's "Prefer built-in components over custom Blade" ladder.
+- **SHOULD** reserve custom Blade in the page body for genuinely non-Filament layouts; even then, wrap content in `<x-filament::section>` so it stays themed.
+
 ## Header / footer actions
 
 ```php
