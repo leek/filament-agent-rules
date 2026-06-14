@@ -115,69 +115,18 @@ app/Filament/Resources/Customers/
     └── OrdersRelationManager.php
 ```
 
-### Schema/Table class shape — `configure()` over inheritance
+### How to build the extracted classes
 
-```php
-final class CustomerForm
-{
-    public static function configure(Schema $schema): Schema
-    {
-        return $schema->components([
-            CustomerNameInput::make(),
-            CustomerCountrySelect::make(),
-        ]);
-    }
-}
-```
+The Resource only **wires** these classes (`form()`, `table()`, `infolist()`, `getRelations()`, `getPages()`). The `configure()` / `make()` class shapes and extraction rules live with the code they govern — read the matching file when you build that class, **not** this one:
 
-- **MUST NOT** extend a parent class or interface on `*Form` / `*Infolist` / `*Table` classes. Filament docs deliberately leave them open so `configure()` can accept extra context args (`configure(Schema $schema, ?Customer $forCustomer = null)`) for reuse across panels / pages.
-- **MUST** make `configure()` `static`.
+| Building… | Read |
+| --------- | ---- |
+| a form or infolist (`*Form`, `*Infolist`), its `Components/`, layout, reactivity | `app/Filament/Resources/Schemas/CLAUDE.md` |
+| a table (`*Table`), its `Columns/` + `Filters/`, empty state | `app/Filament/Resources/Tables/CLAUDE.md` |
+| an extracted Action (reusable across header / row / bulk surfaces) | `app/Filament/Actions/CLAUDE.md` |
+| a relation manager | `app/Filament/Resources/RelationManagers/CLAUDE.md` |
 
-### Per-component class shape — `make()` returns one component
-
-```php
-final class CustomerNameInput
-{
-    public static function make(): TextInput
-    {
-        return TextInput::make('name')
-            ->label('Full name')
-            ->required()
-            ->maxLength(255);
-    }
-}
-```
-
-```php
-final class CustomerCountryColumn
-{
-    public static function make(): TextColumn
-    {
-        return TextColumn::make('country.name')
-            ->searchable()
-            ->sortable()
-            ->badge();
-    }
-}
-```
-
-Then in the schema/table:
-
-```php
-->components([CustomerNameInput::make(), CustomerCountrySelect::make()])
-->columns([CustomerNameColumn::make(), CustomerCountryColumn::make()])
-->filters([CustomerCountryFilter::make()])
-```
-
-### When to extract a component
-
-- **MUST** extract once a single component crosses ~5 chained modifiers, or is reused in ≥2 schemas/tables.
-- **SHOULD** extract immediately for fields with non-obvious config (rules, custom validation messages, masked input, conditional visibility) — keeps the schema scannable.
-- **AVOID** extracting trivial one-liner components (`TextInput::make('name')->required()`) — the indirection cost outweighs the win.
-
-### Action classes — reusable across surfaces
-
-A single extracted Action class drops into header, row, and bulk surfaces with no duplication. See `app/Filament/Actions/CLAUDE.md` for the class shape; see the "Reusable across surfaces" example there for usage.
+- **MUST NOT** inline a form, table, or infolist definition in the Resource — it's a wiring manifest only. The "where to read" table above is the contract: definitions live in their own classes, governed by their own rules.
 
 ## Eager loading — `getEloquentQuery()`
 

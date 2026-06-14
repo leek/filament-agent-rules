@@ -68,6 +68,9 @@ public static function form(Schema $schema): Schema
 }
 ```
 
+- **MUST** make `configure()` `static` and return the `$schema`.
+- **MUST NOT** extend a parent class or interface on `*Form` / `*Infolist` classes — Filament deliberately leaves them open so `configure()` can accept extra context args (`configure(Schema $schema, ?Customer $forCustomer = null)`) for reuse across panels / pages. Compose, don't inherit.
+
 ## Rules
 
 - **MUST** extract schemas to their own classes once a resource has >2 sections or >10 fields. Inline schemas inside the Resource bloat the file fast.
@@ -108,6 +111,15 @@ Section::make('Patient')
 - **PREFER** a 12-column grid (`->columns(12)`) with explicit `->columnSpan(n)` over smaller column counts — consistent math, resizes without re-thinking.
 - **MUST** use `->columnSpanFull()` for a genuinely full-width field, **not** `->columnSpan(12)` or `->columnSpan('full')`. `columnSpanFull()` is full width on *every* breakpoint; `columnSpan(12)`/`('full')` only fill the row at `lg`+ and behave differently below it.
 
+A pair that lives *outside* a 12-column section can carry its own `Grid::make(2)` — the relationship reads at a glance and the two validate together:
+
+```php
+Grid::make(2)->schema([
+    DateTimePicker::make('starts_at')->seconds(false)->required(),
+    DateTimePicker::make('ends_at')->seconds(false)->required()->after('starts_at'),
+]);
+```
+
 ### Responsiveness is automatic at `lg` — but only there
 
 Integer `->columns(n)` and `->columnSpan(n)` apply at the `lg` breakpoint and up; **below `lg` everything collapses to a single column** automatically. So a plain `->columns(12)` form already stacks cleanly on phones with no extra work.
@@ -136,9 +148,35 @@ $schema->components([
 ]);
 ```
 
+- **MUST** group by **domain meaning, not data type or creation order** — each `Section` is one concept the admin reasons about as a unit ("Identity", "Specifications", "Billing"), not a bucket of same-typed inputs. `name` next to `engine_hp` next to `color` forces a context-switch on every field.
 - **SHOULD** make a form "look its best": labeled `Section`s per logical group, fields sized to content, related fields paired on rows. A wall of stacked full-width inputs is a failed layout even if every field works.
 - **PREFER** (house polish) `->compact()` sections with an `->icon(...)->iconColor('primary')` header — tighter and more scannable than the default. Match whatever the project's existing sections already do.
 - **SHOULD** keep a `Section`'s own `->columns()` at 12 to match the page grid, so a `columnSpan(6)` means the same thing everywhere.
+
+#### Balance side-by-side section heights
+
+When sections share a row, a tall one (a `RichEditor`, 6+ fields) next to a short one (2–3 fields) leaves a lopsided gap. Stack the short sections in a nested `Grid` opposite the tall one so both columns end near the same height (count a `RichEditor`/`Textarea` as ~3–4 short fields):
+
+```php
+Grid::make(12)->schema([
+    Section::make('Overview')->columnSpan(8)->schema([
+        TextInput::make('name')->required(),
+        RichEditor::make('description')->columnSpanFull(),
+    ]),
+
+    // Short sections stacked to fill the same height as the tall one.
+    Grid::make(1)->columnSpan(4)->schema([
+        Section::make('Status')->schema([Select::make('status')->options(Status::class)]),
+        Section::make('Schedule')->schema([
+            DatePicker::make('starts_at'),
+            DatePicker::make('ends_at'),
+        ]),
+    ]),
+]);
+```
+
+- **SHOULD** balance adjacent section heights — equal *visual* height matters more than equal field counts.
+- If the project ships a `match-height` utility class (some do), `->extraAttributes(['class' => 'match-height'])` on the wrapping `Grid` equalizes column heights without restructuring — but that's project CSS, so confirm it exists first (don't assume defaults).
 
 ## Common components
 
@@ -160,6 +198,65 @@ $schema->components([
 | `ColorPicker`   | hex color                                                |
 | `Hidden`        | non-editable but submitted                               |
 | `Placeholder`   | non-editable, non-submitted display                      |
+
+## Field affordances — make every field self-explanatory
+
+A field that *works* isn't a field that's *done*. Communicate the expected format, units, constraints, and meaning so admins don't guess — every guess is an inconsistent row or a support ticket.
+
+### Right component for the data
+
+Beyond mirroring `$casts` (see Rules), pick the component that makes invalid input *impossible*, not just one that stores the value:
+
+- **MUST NOT** use a `TextInput` for a value from a finite set — a year, country, currency, status, or any enum. A free-text "year" accepts `20025`; a `Select` can't.
+  ```php
+  Select::make('year')
+      ->options(array_combine(range(now()->year + 1, 1990), range(now()->year + 1, 1990)))
+      ->searchable();
+  Select::make('country_id')->relationship('country', 'name')->searchable();
+  ```
+- **MUST** use `DatePicker` / `DateTimePicker` (not `TextInput`) for temporal values, and `Toggle` / `Checkbox` for booleans.
+- **MUST** use `Textarea` (not `TextInput`) for multi-line content — descriptions, bios, notes, reasons, excerpts. A single-line input for a paragraph hides what the admin typed.
+- **MUST** add `->columnSpanFull()` to every `Textarea` and `RichEditor` — squeezed into a half-width grid column they're unusable (see "Layout").
+
+### Guidance text — only where it earns its place
+
+- **SHOULD** add `->helperText('e.g. ACCA, ACA, CIMA')` to fields whose label doesn't pin down the expected values (`qualifications`, `specialties`, vague `type`/`code` fields).
+- **MUST** add `->helperText(...)` to a `->nullable()` field whose empty state carries meaning — "Leave empty if no deposit required" vs an admin who simply forgot. Null and zero are not the same; say which you mean.
+- **PREFER** `->placeholder('+1 555 123 4567')` only when a concrete example removes format ambiguity. A placeholder *supports* a label; it never replaces the label or helper text.
+
+### Units and length
+
+- **MUST** mark numeric units with `->prefix('$')` / `->suffix('/hr')` / `->suffix('kg')` — `Rate: 50` is ambiguous; `$50 /hr` isn't. Use both prefix and suffix for a rate.
+- **SHOULD** set `->maxLength(n)` on short-string fields (postcode, code, plate, PIN) — it caps input, surfaces a live character counter, and prevents silent DB truncation. Pair with a `->placeholder` showing the format.
+
+### Field-level validation — stop bad data at entry
+
+Validation *rules* (not just messages — see "Custom validation messages") prevent invalid input before submit:
+
+- **MUST** constrain dates that have a valid direction: `->minDate(now())` for expiries/bookings, `->maxDate(now())` for birth dates / historical records. Add `->seconds(false)` on `DateTimePicker` unless seconds matter.
+- **MUST** validate cross-field ranges on paired fields — `->after('starts_at')` on an end date, min/max relationships. A start and end that are each individually valid can still form a backwards range.
+  ```php
+  DateTimePicker::make('ends_at')->after('starts_at')->seconds(false);
+  ```
+- **SHOULD** add `->url()` to `*_url` / `website` / `link` fields (plus `->suffixIcon(Heroicon::OutlinedLink)` or `->prefix('https://')`) — otherwise "not a url" sails through and breaks the frontend.
+
+### FileUpload — always constrain
+
+- **MUST** set `->acceptedFileTypes([...])` and `->maxSize(kb)` on every `FileUpload` — unconstrained uploads are a performance and security hole.
+- **MUST** treat disk visibility explicitly: Filament uploads are **private** by default. Use `->visibility('public')` only when the file is genuinely public, and scope the disk (`->disk('s3')`).
+- **SHOULD** queue expensive image processing / conversions rather than doing them in the request path.
+  ```php
+  FileUpload::make('attachment')
+      ->acceptedFileTypes(['application/pdf', 'image/jpeg', 'image/png'])
+      ->maxSize(5120)
+      ->disk('s3');
+  ```
+
+### Consistency for codes and toggles
+
+- **SHOULD** enforce casing on codes that are uppercase by convention (VIN, currency code, plate): `->dehydrateStateUsing(fn ($s) => strtoupper($s))` for storage, plus `->extraInputAttributes(['style' => 'text-transform:uppercase'])` for live feedback.
+- **PREFER** explicit `->onColor('success')` / `->offColor('danger')` on a `Toggle` **only** in toggle-dense forms where state must be scanned fast — semantic colors on every lone boolean overstate the meaning.
+- **PREFER** `->autofocus()` on the first field of high-frequency *create* flows only; skip it in modals, on mobile, and on edit forms, where it yanks the viewport.
 
 ## Relationship-aware components
 

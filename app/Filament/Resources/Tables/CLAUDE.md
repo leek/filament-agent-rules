@@ -65,6 +65,8 @@ final class OrdersTable
 
 ## Rules
 
+- **MUST** make `configure()` `static` and return the `$table`.
+- **MUST NOT** extend a parent class or interface on `*Table` classes — keep them open so `configure()` can accept extra context args (`configure(Table $table, ?Customer $forCustomer = null)`) for reuse across panels / pages. Compose, don't inherit.
 - **MUST** eager-load any relation referenced by a column via dot-notation (`customer.name`). The Resource's `getEloquentQuery()` is the right place — see `app/Filament/Resources/CLAUDE.md`.
 - **MUST** call `->searchable()` and `->sortable()` only on indexed columns. Adding `->searchable()` to a non-indexed column hits the DB with an unindexed `LIKE` on every keystroke.
 - **MUST** prefer `TextColumn::make('relation.column')->searchable()` over a raw query — Filament builds a correct join.
