@@ -152,7 +152,7 @@ $schema->components([
 
 - **MUST** group by **domain meaning, not data type or creation order** — each `Section` is one concept the admin reasons about as a unit ("Identity", "Specifications", "Billing"), not a bucket of same-typed inputs. `name` next to `engine_hp` next to `color` forces a context-switch on every field.
 - **SHOULD** make a form "look its best": labeled `Section`s per logical group, fields sized to content, related fields paired on rows. A wall of stacked full-width inputs is a failed layout even if every field works.
-- **PREFER** (house polish) `->compact()` sections with an `->icon(...)->iconColor('primary')` header — tighter and more scannable than the default. Match whatever the project's existing sections already do.
+- **PREFER** (house polish) `->compact()` sections with an `->icon(...)->iconColor('primary')` header — tighter and more scannable than the default. Match whatever the project's existing sections do.
 - **SHOULD** keep a `Section`'s own `->columns()` at 12 to match the page grid, so a `columnSpan(6)` means the same thing everywhere.
 
 #### Balance side-by-side section heights
