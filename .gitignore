@@ -1,1 +1,6 @@
 .DS_Store
+
+# Root-level meta-CLAUDE.md documents how to work on THIS repo.
+# It must stay untracked: the installer walks every tracked CLAUDE.md and
+# ships it into target projects — a root one would leak into installs.
+/CLAUDE.md
