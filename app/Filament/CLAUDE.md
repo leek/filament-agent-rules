@@ -59,6 +59,40 @@ Action::make('approve')
 
 Filament leans heavily on fluent builders inside static methods (`form(Schema $schema)`, `table(Table $table)`, `infolist(Schema $schema)`). Override the builder method on the Resource/Page/Widget — don't subclass framework classes.
 
+## How schemas work — the component tree
+
+Forms, infolists, page bodies, action modals, and wizard steps are all the **same structure**: a `Filament\Schemas\Schema` object holding a tree of components. Internalize this one model and most "I need a custom page/Blade view" problems dissolve — almost any layout is just components arranged in a schema.
+
+**A `Schema` is a container.** You hand it a flat array of components via `->components([...])`. That single shape is what `form(Schema $schema)`, `infolist(Schema $schema)`, a page's `content(Schema $schema)`, an action's modal `->schema([...])`, and a wizard step's `->schema([...])` all build and return.
+
+**Four kinds of component compose into one tree** — mix them freely in the same schema:
+
+| Category | Namespace | Role | Examples |
+| -------- | --------- | ---- | -------- |
+| **Fields** | `Filament\Forms\Components\*` | accept input (with validation) | `TextInput`, `Select`, `Repeater`, `FileUpload` |
+| **Entries** | `Filament\Infolists\Components\*` | display a record attribute, read-only | `TextEntry`, `IconEntry`, `ImageEntry` |
+| **Layout** | `Filament\Schemas\Components\*` | structure / arrange other components | `Section`, `Grid`, `Tabs`, `Wizard`, `Fieldset`, `Split` |
+| **Prime** | `Filament\Schemas\Components\*` | render static / computed content | `Text`, `Icon`, `Image`, `UnorderedList` |
+
+Layout and prime components share the `Filament\Schemas\Components\*` namespace precisely *because* they aren't form- or infolist-specific — the same `Section`/`Grid` structures either one. (Actions are also insertable into a schema.)
+
+**Nesting is infinite.** A layout component nests a **child schema** via `->schema([...])`; those children can themselves be layout components with their own `->schema([...])`, to any depth:
+
+```php
+$schema->components([                      // top-level Schema → ->components()
+    Section::make('Account')->schema([     // layout component nests a child schema → ->schema()
+        Grid::make(2)->schema([
+            TextInput::make('name'),
+            TextInput::make('email'),
+        ]),
+    ]),
+]);
+```
+
+- **MUST** mind the API seam: the top-level **`Schema`** takes **`->components([...])`**; a **layout component** nests its children via **`->schema([...])`**. (A few — `Split`, `Stack`, `Group`, `Wizard` — take their children as a constructor array instead, since their first argument isn't a label.) Calling `->components()` on a `Section` or `->schema()` on the top-level schema is a common mistake.
+- **MUST** choose a component's namespace by category, not by guess: a field is `Filament\Forms\Components\TextInput`, an entry is `Filament\Infolists\Components\TextEntry`, but the `Section`/`Grid`/`Tabs` wrapping either is `Filament\Schemas\Components\*`. The v4 `Filament\Forms\Components\{Section,Grid}` location no longer applies — see "v5+ notes".
+- **PREFER** expressing any "custom layout" as nested layout + prime components in a schema before reaching for Blade — this component tree is the structural backing for the "Prefer built-in components over custom Blade" ladder below.
+
 ## Prefer built-in components over custom Blade
 
 Filament renders almost any UI declaratively. A custom Blade view is the **last** resort, not the first — it skips Filament's theming, dark mode, spacing, and state handling, and rots out of sync with the rest of the panel. Before writing a `->view(...)`, a `ViewField`/`ViewEntry`, a custom-view schema component, or a Blade-backed `Widget`, walk this ladder and stop at the first rung that works:
@@ -68,11 +102,19 @@ Filament renders almost any UI declaratively. A custom Blade view is the **last*
 3. **A `Callout`** — for an info / warning / error block (Schemas → "Callout").
 4. **A composition of the above** inside `Section` / `Grid` / `Fieldset` / `Split` — most "custom" layouts are just built-ins on a grid.
 5. **A custom component class** that returns a configured built-in (the `make()` pattern) — for reusable heavy config.
-6. **Custom Blade** (`->view(...)`, `ViewField`, `ViewEntry`, a `Widget` view) — only when the markup is genuinely bespoke (a third-party embed, a hand-built chart, a non-Filament layout).
+6. **Custom Blade** (`->view(...)`, `ViewField`, `ViewEntry`, `ViewColumn`, a `Widget` view) — only when the markup is genuinely bespoke (a third-party embed, a hand-built chart, a non-Filament layout). For table cells specifically, `ViewColumn` and full custom column classes are the sanctioned hatch — see `app/Filament/Resources/Tables/CLAUDE.md` → "Custom columns".
 
 - **MUST** exhaust rungs 1–5 before dropping to Blade. "I'll just make a quick Blade view" is how a panel ends up with a dozen unthemed one-off partials.
 - **MUST**, when you do reach rung 6, wrap the markup in Filament's wrappers (`<x-filament::section>`, `<x-filament-widgets::widget>`, `<x-filament-panels::page>`) so theming and dark mode still apply.
 - **PREFER** extracting a reusable custom **component class** (rung 5) over copying a Blade partial — it composes with a schema like any other component.
+
+## Prefer embedding a Livewire component over a custom page
+
+The ladder above is about a single component. The same instinct applies one level up, at the **page**: when a page needs something Filament can't build out of the box, the wrong move is to throw away the standard Resource page and hand-build a fully custom Livewire page. Almost always **only one or two pieces are actually custom** — a real-time sidebar, a bespoke chart, a non-standard widget. Build *those* as Livewire components and embed them; keep everything else (form, table, relation managers, save pipeline, validation, authorization, notifications) that Filament gives you.
+
+- **MUST** prefer embedding `Filament\Schemas\Components\Livewire::make(Component::class, [...])` into a page's `content()` schema (or any form/infolist schema) over converting the page to bespoke Blade/Livewire. A custom component in a standard page beats a custom page reimplementing the form.
+- **MUST** still delegate the embedded component's business logic to an `app/Actions/` class — it's a UI boundary, like a Filament Action.
+- See `app/Filament/Resources/Pages/CLAUDE.md` → "Custom page content" for the `content()` + `Livewire::make()` mechanics, and `app/Filament/Pages/CLAUDE.md` for standalone pages.
 
 ## Enums for status / type / category
 
@@ -135,6 +177,44 @@ TextColumn::make('status')->badge();                                  // table �
 IconEntry::make('status');                                            // infolist
 ```
 
+### The four presentation contracts
+
+All live in `Filament\Support\Contracts\*`. Implement only the ones an enum needs and combine them in one `implements` list. Filament reads them **automatically** wherever the enum is a field/column/entry's value — no `->options([...])` array, `->color(fn ...)`, `->icon(fn ...)`, or `->formatStateUsing()` required.
+
+| Contract | Method (interface return type) | Auto-renders in |
+| -------- | ------------------------------ | --------------- |
+| `HasLabel` | `getLabel(): string\|Htmlable\|null` | `Select` / `Radio` / `CheckboxList` / `ToggleButtons` option labels; `TextColumn` / `SelectColumn` / `SelectFilter` + table group titles; `TextEntry` |
+| `HasColor` | `getColor(): string\|array\|null` | `TextColumn` / `TextEntry` (best with `->badge()`); `ToggleButtons` |
+| `HasIcon` | `getIcon(): string\|BackedEnum\|Htmlable\|null` | `TextColumn` / `TextEntry` (with `->badge()`); `IconColumn` / `IconEntry`; `ToggleButtons` |
+| `HasDescription` | `getDescription(): string\|Htmlable\|null` | `Radio` / `CheckboxList` option descriptions |
+
+- **SHOULD** implement `HasDescription` whenever a `Radio` / `CheckboxList` enum's options need explaining — Filament renders the description beneath each label, turning a bare list into a self-documenting choice with zero extra wiring:
+
+  ```php
+  enum Visibility: string implements HasLabel, HasDescription
+  {
+      case Public = 'public';
+      case Private = 'private';
+
+      public function getLabel(): string
+      {
+          return ucfirst($this->value);
+      }
+
+      public function getDescription(): ?string
+      {
+          return match ($this) {
+              self::Public  => 'Anyone with the link can view.',
+              self::Private => 'Only you and invited members.',
+          };
+      }
+  }
+
+  Radio::make('visibility')->options(Visibility::class);   // labels AND descriptions render automatically
+  ```
+
+- An implementing method **may narrow** the interface's union return type — the `OrderStatus` example above uses `getLabel(): string` and `getColor(): string`, which is fine (covariant return types are allowed). Pick the narrowest type that fits.
+
 - **MUST** keep enum case names PascalCase and backed values snake_case — backed values become DB column values; casing matters for migrations and search.
 - **MUST** use semantic colors (`success`/`warning`/`danger`/`info`/`primary`/`gray`) — Filament maps them through the theme, so palette changes propagate without touching enums.
 - **PREFER** an enum over a `string` column the moment a state machine appears (more than 2 values, or any forbidden transition).
@@ -144,6 +224,42 @@ IconEntry::make('status');                                            // infolis
 - **MUST** rely on Laravel Policies for record-level authorization. Filament auto-resolves `{Model}Policy` for `viewAny`, `view`, `create`, `update`, `delete`, `restore`, `forceDelete`.
 - **MUST NOT** inline `auth()->user()->isAdmin()` checks inside Resource methods — funnel through the policy.
 - For panel-level access, implement `FilamentUser::canAccessPanel(Panel $panel)` on the `User` model.
+
+## Security
+
+Filament ships a dedicated security guide (`filamentphp.com/docs/5.x/advanced/security`). The load-bearing rules, consolidated — per-surface specifics are cross-linked, not restated.
+
+### The schema is the write allowlist (mass assignment)
+
+Filament does **not** lean on Eloquent's `$fillable`/`$guarded` for the form save — **only attributes with a matching component in the form schema are writable.** An attribute absent from the schema can't be written, even via a hand-crafted Livewire request: "only attributes with corresponding form fields are actually editable — this is not a mass assignment vulnerability."
+
+- **MUST** keep privileged attributes (`is_admin`, `role`, `credits`, `*_verified_at`) out of the editable schema. To keep them off the client entirely, add them to the model's `$hidden`, or strip them in `mutateFormDataBeforeFill()`.
+- **MUST** gate `->dehydrated(fn () => ...)` (PHP) on any conditionally-hidden field that must not persist — client visibility is presentational, **not** a write boundary. See `app/Filament/Resources/Schemas/CLAUDE.md` → "Conditional visibility".
+
+### Authorize everything custom
+
+Filament auto-checks model policies only for **standard CRUD**. Anything you add — custom actions, custom pages, custom Livewire components, inline-editable columns, API endpoints — **is not authorized automatically.**
+
+- **MUST** authorize custom surfaces yourself with `->authorize(...)` / `->visible(...)` / `->hidden(...)`, page `canAccess()`, or an explicit policy call — they are never applied for you. See "Authorization" above, plus the per-surface notes (Tables → bulk actions + inline columns, Actions → `authorize`, Pages → `canAccess`).
+- **MUST** run authorization **before** side effects. Don't do work that shouldn't happen for an unauthorized user in `boot()` or per-property hydrate hooks — those can fire *before* the policy abort. Put the side effect inside the authorized action/method.
+- Inline columns (`ToggleColumn`/`SelectColumn`/`TextInputColumn`) check only `->disabled()`, never the policy — `->disabled(fn ($record) => ! auth()->user()->can('update', $record))` (already required in Tables).
+
+### Never render unsanitized user content (XSS)
+
+Custom columns, custom entries, `ViewColumn`/`ViewEntry`, and any `->view(...)` Blade become XSS vectors the moment user-controlled data flows through them. Treat the following as hostile-by-default:
+
+- **MUST NOT** print user content with raw `{!! $value !!}`. Sanitize: `{!! str($record->content)->sanitizeHtml() !!}` (Markdown: `{!! str($record->content)->markdown()->sanitizeHtml() !!}`).
+- **`extraAttributes()` / `extraInputAttributes()` / every `extra*Attributes()` render their values UN-escaped.** Safe with literals (`['class' => 'rounded-md']`); **MUST NOT** pass user-controlled attribute names/values — an attacker breaks out of the attribute and injects markup.
+- **`->url($value)`** renders `<a href="...">` verbatim — a value like `javascript:alert(document.cookie)` executes. **MUST** run user-sourced URLs through `Str::sanitizeUrl()` first.
+- **`->html()` / `->markdown()`** auto-sanitize via Symfony's `HtmlSanitizerConfig`, **but the `style` attribute is allowed by default** — `position: fixed`, `background: url(...)` etc. survive. Don't treat them as fully safe for hostile input.
+- **MUST** validate user-controlled **icon names** against an allowlist — an invalid `Heroicon`/icon string throws a render error.
+
+### Custom FileUpload & custom queries
+
+- A **custom Livewire component** hosting a `FileUpload` (e.g. the embedded-component pattern in `app/Filament/Resources/Pages/CLAUDE.md`) **MUST** use the `RestrictsFileUploadsToSchemaComponents` trait. Without it, a crafted Livewire request can upload to **arbitrary property paths** on any component using `InteractsWithSchemas`. Filament's own resource pages already include it; your custom ones don't. (A conditionally-hidden `FileUpload` is not a valid upload target — uploads to it are rejected.)
+- **MUST** constrain every upload (`->acceptedFileTypes()`, `->maxSize()`, `->disk()`, `->visibility()`) — see `app/Filament/Resources/Schemas/CLAUDE.md` → "FileUpload".
+- **Multi-tenancy:** Filament scopes **resource** queries to the tenant automatically; **custom queries, actions, pages, and widgets MUST scope to `Filament::getTenant()` themselves** — one forgotten scope leaks another tenant's data. See `app/Providers/Filament/CLAUDE.md` → "Tenancy".
+- **SHOULD** verify, with tests, that authorization holds at **every** entry point — resource pages, custom pages, actions, bulk actions, inline columns. See `tests/Feature/Filament/CLAUDE.md`.
 
 ## Notifications (cross-cutting)
 

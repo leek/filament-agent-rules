@@ -135,6 +135,7 @@ $table
 | `ToggleColumn` | inline edit a boolean — **commits on click**             |
 | `SelectColumn` / `TextInputColumn` | inline edit — commit on blur         |
 | `CheckboxColumn` | inline edit a boolean checkbox                          |
+| `ViewColumn`   | arbitrary Blade markup when no built-in column fits — see "Custom columns" |
 
 - v5 **removed `BadgeColumn`**. Use `TextColumn::make(...)->badge()->color(fn ($state) => ...)` instead.
 
@@ -156,6 +157,115 @@ ToggleColumn::make('is_published')
 - `->placeholder('—')` — render when value is null.
 - `->state(fn ($record) => /* computed */)` — derived value.
 - `->toggleable(isToggledHiddenByDefault: true)` — let user hide.
+
+## Custom columns — when the built-ins can't render it
+
+When the cell isn't plain text, a badge, an icon, an image, or a color swatch — a progress bar, a star rating, a sparkline, a stacked avatar + name + email cell, an audio player — **don't** give up and dump raw HTML through `->formatStateUsing(fn () => new HtmlString(...))`, and **don't** jump straight to a bespoke custom *page*. Filament has two purpose-built escape hatches for table cells, and agents reach for neither often enough. This is the table rung of the hub's "Prefer built-in components over custom Blade" ladder (`app/Filament/CLAUDE.md`).
+
+First exhaust the built-in column + its modifiers — most "I need a custom column" is really one of:
+
+- `->state(fn ($record) => ...)` (derived value), `->formatStateUsing(fn ($state) => ...)` (display formatting), `->badge()->color()->icon()`, `->description(fn ($record) => ..., position: 'below')` (a second line under the value), `->html()` (trusted inline HTML only — never user input).
+
+Only when no combination of those renders the cell do you drop to Blade — via `ViewColumn` (quick, no class) or a custom column class (reusable).
+
+### `ViewColumn` — point a column at a Blade view (no class)
+
+`Filament\Tables\Columns\ViewColumn` is the lightweight hatch: a real column whose body is your Blade view. Undocumented, but first-class and long-lived. Use it for **one-off** bespoke markup that won't be reused.
+
+```php
+use Filament\Tables\Columns\ViewColumn;
+
+ViewColumn::make('rating')
+    ->view('filament.tables.columns.star-rating')
+    ->viewData(['max' => 5])          // extra data for the view
+    ->sortable();                     // still a real column — state/sort/search hit the underlying attribute
+```
+
+```blade
+{{-- resources/views/filament/tables/columns/star-rating.blade.php --}}
+@php($rating = (int) $getState())
+<div class="flex gap-0.5">
+    @for ($i = 1; $i <= $max; $i++)
+        <x-filament::icon
+            :icon="$i <= $rating ? 'heroicon-s-star' : 'heroicon-o-star'"
+            @class([
+                'h-4 w-4',
+                'text-warning-500' => $i <= $rating,
+                'text-gray-300 dark:text-gray-600' => $i > $rating,
+            ])
+        />
+    @endfor
+</div>
+```
+
+Inside the view: `$getState()` is the cell value, `$record` is the row's model, `$column` is the column instance, `$this` is the Livewire component.
+
+### Custom column class — when it's reused or configurable
+
+When the same custom cell ships in ≥2 tables, or needs its own fluent config (`->speed(0.5)`, `->max(10)`), generate a class that **extends the base `Column`** and declares a `$view`:
+
+```bash
+php artisan make:filament-table-column AudioPlayerColumn
+```
+
+```php
+namespace App\Filament\Tables\Columns;
+
+use Closure;
+use Filament\Tables\Columns\Column;
+
+final class AudioPlayerColumn extends Column
+{
+    protected string $view = 'filament.tables.columns.audio-player-column';
+
+    protected float | Closure | null $speed = null;
+
+    public function speed(float | Closure | null $speed): static
+    {
+        $this->speed = $speed;
+
+        return $this;
+    }
+
+    public function getSpeed(): ?float
+    {
+        return $this->evaluate($this->speed);   // resolves a closure + injects utilities ($record, etc.)
+    }
+}
+```
+
+Every public getter is callable from the view as a "variable function" — `getSpeed()` → `$getSpeed()`:
+
+```blade
+{{-- resources/views/filament/tables/columns/audio-player-column.blade.php --}}
+<audio src="{{ $getState() }}" controls data-speed="{{ $getSpeed() }}"></audio>
+```
+
+```php
+AudioPlayerColumn::make('recording')
+    ->speed(fn (Recording $record) => $record->isGlobal() ? 1 : 0.5);
+```
+
+### Where it lives — resource-scoped vs. global
+
+- **MUST** put a custom column **specific to one resource** in that resource's namespace — `app/Filament/Resources/Recordings/Tables/Columns/AudioPlayerColumn.php`, the same `Tables/Columns/` directory the per-column wrappers use.
+- **MAY** put a **generic, model-agnostic** custom column (a `StarRatingColumn`, `ProgressColumn`, `MoneyDiffColumn` reused across resources) in the global `app/Filament/Tables/Columns/` namespace — the path `make:filament-table-column` scaffolds by default. Global is acceptable here precisely *because* the column is model-agnostic; resource-specific ones are not.
+- Keep the Blade view under `resources/views/filament/tables/columns/` either way; when resource-scoped, namespace the view file (`recordings/audio-player-column.blade.php`) so it can't collide with a global one.
+
+### Custom column vs. extraction wrapper — don't confuse them
+
+Both live in `Tables/Columns/` and both are named `{Thing}Column`, but they're opposite patterns:
+
+| | Extraction wrapper (above) | Custom column class (here) |
+| --- | --- | --- |
+| Method | `static make(): TextColumn` | inherits `Column::make(string)` |
+| Base relationship | **wraps** a built-in, returns it | **extends** `Column`, *is* a new type |
+| Blade view? | no | yes (`protected string $view`) |
+| Use when | a built-in + heavy config | no built-in can render the cell |
+
+- The "**MUST NOT** extend `TextColumn` / `SelectFilter`" rule above is about not subclassing the **concrete** columns. A genuinely custom column **type** legitimately extends the **abstract base** `Filament\Tables\Columns\Column` — that's Filament's sanctioned extension point, not a violation of that rule.
+- **MUST** keep custom-column Blade dark-mode-aware (Filament/Tailwind classes, `dark:` variants) — an unthemed one-off cell is exactly the rot the hub's Blade ladder warns about.
+- **MUST NOT** run queries or heavy computation inside the column's Blade view — it renders once per row (25+ times per page). Compute in `->state(fn ($record) => ...)` and eager-load on the Resource's `getEloquentQuery()`.
 
 ## Filters
 
@@ -224,7 +334,7 @@ Table-scoped operations (Create, Import, Export, Attach) belong here, not on the
 ## ImageColumn options
 
 ```php
-ImageColumn::make('avatar')->circular()->size(40);                 // single
+ImageColumn::make('avatar')->circular()->imageSize(40);            // single (or ->imageWidth()/->imageHeight())
 ImageColumn::make('images')->stacked()->limit(3)->limitedRemainingText();  // multi
 ImageColumn::make('logo')->defaultImageUrl(asset('placeholder.svg')); // fallback
 ```
@@ -272,6 +382,73 @@ ImageColumn::make('logo')->defaultImageUrl(asset('placeholder.svg')); // fallbac
     Group::make('status')->collapsible(),
 ])
 ```
+
+## Card grid layout — a table rendered as cards, not rows
+
+A table doesn't have to render as rows. A people directory, product gallery, media library, or anything that reads better as a **card** can be laid out as a responsive grid using Filament's built-in **column layout components** — no custom page, no hand-built Livewire component, no Blade table. Agents almost always reach for a hand-built page here; **don't**: the table layout keeps filters, search, sorting, pagination, actions, authorization, and the empty state for free.
+
+**Drop to a custom page only when the cards need behavior the table layout can't express** — drag-to-reorder kanban, per-card inline editing of many fields, a genuinely non-grid canvas. Absent that complexity, build the grid in the `*Table` class.
+
+### The pieces
+
+| Component | Role |
+| --------- | ---- |
+| `Layout\Stack` | stacks its columns **vertically** (the card body) |
+| `Layout\Split` | lays its columns **horizontally** (image beside text); collapses on mobile, tune with `->from('md')` |
+| `Layout\Grid` | arranges columns on a responsive grid **inside** a card (`->grid(['lg' => 2])->schema([...])`) |
+| `Layout\Panel` | wraps columns in a bordered/background card surface; supports `->collapsible()` |
+| `Table::contentGrid([...])` | lays **the cards themselves** out as a responsive grid across the page |
+
+All four layout components live under `Filament\Tables\Columns\Layout\*`. `Split`/`Stack`/`Grid` arrange columns *within one record's card*; `->contentGrid()` arranges the *cards* across the page — you need both.
+
+### Example — a user directory as cards
+
+```php
+use Filament\Support\Enums\FontWeight;
+use Filament\Support\Icons\Heroicon;
+use Filament\Tables\Columns\ImageColumn;
+use Filament\Tables\Columns\Layout\{Split, Stack};
+use Filament\Tables\Columns\TextColumn;
+
+public static function configure(Table $table): Table
+{
+    return $table
+        ->columns([
+            Split::make([
+                ImageColumn::make('profile_image')
+                    ->imageHeight(150)
+                    ->imageWidth(120)
+                    ->extraImgAttributes(['class' => 'rounded-md'])
+                    ->grow(false),                 // fixed-width image side
+
+                Stack::make([
+                    TextColumn::make('name')->weight(FontWeight::Medium)->searchable(),
+                    TextColumn::make('location')->icon(Heroicon::OutlinedMapPin),
+                    TextColumn::make('profession')->color('gray'),
+                ])
+                    ->extraAttributes(['class' => 'space-y-2'])
+                    ->grow(),                      // text side consumes the remaining width
+            ]),
+        ])
+        ->contentGrid(['md' => 2, 'xl' => 3])      // 2 cards/row at md, 3 at xl
+        ->recordUrl(fn (User $record) => UserResource::getUrl('view', [$record]))
+        ->paginated([9, 18, 27]);                  // multiples of the column count keep rows full
+}
+```
+
+- **MUST** pair `->contentGrid([...])` with pagination options that are **multiples of the widest column count** (`9, 18, 27` for a 3-up grid) — otherwise the last row is ragged.
+- **MUST** put the fixed-size element (avatar/thumbnail) on `->grow(false)` and the flexible content on `->grow()` inside a `Split`, or the image stretches to fill.
+- **SHOULD** wrap the card body in `Panel::make([...])` when you want a visible card surface (border/background) and optional `->collapsible()` — a bare `Stack` has no chrome.
+- **SHOULD** keep `->searchable()` / `->sortable()` on the columns and lift filters above the grid with `FiltersLayout::AboveContent` (see "Filters") — a card grid with no visible filter bar is hard to scan.
+- This is distinct from `->stackedAt('md')` (see "v5+ notes"), which renders an ordinary **row** table as cards *only below* a breakpoint. `contentGrid()` is a card grid at every breakpoint.
+
+### Don't hack a button into a column
+
+Tutorials build the card's "Details" button by returning `new HtmlString(Blade::render('<x-filament::button .../>'))` from a `TextColumn->default()`. **Don't** — that's the unthemed-Blade anti-pattern the "Custom columns" section and the hub's Blade ladder warn against. Cleaner, in order:
+
+1. **`->recordUrl(fn ($record) => ...)`** — makes the whole card a link (shown above). The right default for "click the card to open it."
+2. **A real `Action`** in `->recordActions([...])` — themed buttons with confirmation/authorization intact.
+3. **A `ViewColumn`** (see "Custom columns") — only when you genuinely need bespoke button markup inside the card.
 
 ## Empty state
 

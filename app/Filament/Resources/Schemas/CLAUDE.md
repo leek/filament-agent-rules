@@ -9,6 +9,8 @@ alwaysApply: false
 
 **Purpose:** declarative component trees for editing (Form) and viewing (Infolist) records. Both share the same `Schema` base class in Filament v4+.
 
+> **Read first:** the schema model — one `Filament\Schemas\Schema` container, four component categories (fields / entries / layout / prime), the `->components()` vs nested `->schema()` seam, and infinite child-schema nesting — is foundational and applies everywhere a schema appears (forms, infolists, page `content()`, action modals, wizards). It's documented once in the hub: `app/Filament/CLAUDE.md` → "How schemas work — the component tree". This file builds on it.
+
 ## Where they live
 
 Per-resource, under `app/Filament/Resources/{Models}/Schemas/`:
@@ -620,6 +622,105 @@ final class OrderInfolist
 - **SHOULD** use `Split::make([...])` with a main `Group` + sidebar `Group` for view pages that mix long-form content (description, comments) with metadata (status, dates).
 - **PREFER** `TextEntry::make(...)->badge()` over `IconEntry` for enum status — badges include the label text, which is more scannable than an icon alone.
 - **SHOULD** use a **prime component** (`Text`/`Icon`/`Image`/`UnorderedList`) for content not bound to a record attribute — section intros, instructions, computed notes. Entries are for record fields; don't abuse a `TextEntry` with a hardcoded string. See "Prime components".
+
+## Custom entries — when no built-in entry fits
+
+Custom entries are the infolist analog of custom columns (`app/Filament/Resources/Tables/CLAUDE.md` → "Custom columns"), and they're very powerful for binding **bespoke DOM/HTML** to a record attribute on a view page — a score gauge, a sparkline, a map, a media player, a styled diff. Agents almost always skip them and hand-build a custom page; **don't**. A custom entry keeps the infolist's label/layout chrome, dark mode, and `Section`/`Grid`/`Split` placement for free.
+
+Walk the same ladder as everywhere else (hub → "Prefer built-in components over custom Blade") and stop at the first rung that works:
+
+1. A **built-in entry** + modifiers — `TextEntry` with `->formatStateUsing()`, `->badge()->color()->icon()`, `->html()` (trusted HTML only), `->listWithLineBreaks()`, `->markdown()`; `IconEntry`, `ImageEntry`, `ColorEntry`. Most "custom" entries are really one of these.
+2. A **prime component** (`Text`/`Icon`/`Image`/`UnorderedList`) or a **`Callout`** — for content *not* bound to a record attribute (see those sections).
+3. Only then, custom Blade — via `ViewEntry` (quick, no class) or a custom entry class (reusable).
+
+### `ViewEntry` — point an entry at a Blade view (no class)
+
+`Filament\Infolists\Components\ViewEntry` is the lightweight hatch: a real entry whose body is your Blade view. Use it for **one-off** bespoke markup.
+
+```php
+use Filament\Infolists\Components\ViewEntry;
+
+ViewEntry::make('health_score')
+    ->view('filament.infolists.components.score-gauge')
+    ->viewData(['max' => 100])
+    ->columnSpanFull();
+```
+
+```blade
+{{-- resources/views/filament/infolists/components/score-gauge.blade.php --}}
+@php($score = (int) $getState())
+<div class="flex items-center gap-3">
+    <div class="h-2 flex-1 rounded-full bg-gray-200 dark:bg-gray-700">
+        <div class="h-2 rounded-full bg-primary-500" style="width: {{ $score }}%"></div>
+    </div>
+    <span class="text-sm font-medium text-gray-700 dark:text-gray-200">{{ $score }}/{{ $max }}</span>
+</div>
+```
+
+Inside the view: `$getState()` is the entry's value, `$record` is the model, `$get('other_field')` reads sibling state, `$operation` is `view`/`edit`/`create`, `$this` is the Livewire component, `$entry` is the entry instance.
+
+### Custom entry class — when it's reused or configurable
+
+When the same entry ships in ≥2 infolists, or needs its own fluent config (`->max(100)`), generate a class that **extends the base `Entry`**:
+
+```bash
+php artisan make:filament-infolist-entry ScoreGaugeEntry
+```
+
+```php
+namespace App\Filament\Infolists\Components;
+
+use Closure;
+use Filament\Infolists\Components\Entry;
+
+final class ScoreGaugeEntry extends Entry
+{
+    protected string $view = 'filament.infolists.components.score-gauge-entry';
+
+    protected int | Closure $max = 100;
+
+    public function max(int | Closure $max): static
+    {
+        $this->max = $max;
+
+        return $this;
+    }
+
+    public function getMax(): int
+    {
+        return $this->evaluate($this->max);   // resolves a closure + injects $record, etc.
+    }
+}
+```
+
+Public getters become "variable functions" in the view (`getMax()` → `$getMax()`). **MUST** wrap the markup in the entry wrapper so the label, hint, and layout chrome render like any other entry:
+
+```blade
+{{-- resources/views/filament/infolists/components/score-gauge-entry.blade.php --}}
+<x-dynamic-component :component="$getEntryWrapperView()" :entry="$entry">
+    @php($score = (int) $getState())
+    <div class="h-2 rounded-full bg-gray-200 dark:bg-gray-700">
+        <div class="h-2 rounded-full bg-primary-500" style="width: {{ $score / $getMax() * 100 }}%"></div>
+    </div>
+</x-dynamic-component>
+```
+
+```php
+ScoreGaugeEntry::make('health_score')->max(100);
+```
+
+### Where it lives — resource-scoped vs. global
+
+- **MUST** put an entry **specific to one resource** in that resource's namespace — `app/Filament/Resources/Servers/Schemas/Components/ScoreGaugeEntry.php`, the same `Schemas/Components/` directory the `make()`-returning extraction classes use.
+- **MAY** put a **generic, model-agnostic** entry (a reusable `ScoreGaugeEntry`, `SparklineEntry`) in the global `app/Filament/Infolists/Components/` namespace — the path `make:filament-infolist-entry` scaffolds by default. Global is fine here *because* the entry is model-agnostic; resource-specific ones are not.
+- Keep the Blade view under `resources/views/filament/infolists/components/`; when resource-scoped, namespace the file (`servers/score-gauge-entry.blade.php`) so it can't collide with a global one.
+
+### Custom entry vs. extraction wrapper vs. prime — don't confuse them
+
+- **Extraction wrapper** (`Schemas/Components/`, `static make(): TextEntry`) **wraps** a built-in and returns it — no view, no subclassing. The "**MUST NOT** extend `TextEntry`" rule (see "Per-component extraction") is about the *concrete* entries.
+- **Custom entry class** legitimately **extends** the *abstract base* `Filament\Infolists\Components\Entry` and declares a `$view` — that's Filament's sanctioned extension point, not a violation of that rule.
+- **Prime** (`Text`/`Icon`/…) renders content *not* tied to a record attribute; a custom **entry** renders a labeled record field. Reach for a `ViewEntry`/custom entry when the value comes from `$record`; a prime for a standalone note.
+- **MUST** keep the Blade dumb — compute in `->state(fn ($record) => ...)`, never query inside the view — and dark-mode-aware (Filament/Tailwind classes, `dark:` variants). An unthemed one-off entry is the rot the hub's Blade ladder warns against.
 
 ## v5+ notes
 

@@ -125,6 +125,7 @@ final class ImportProducts extends Page implements HasForms
 
 - **MUST** keep the page Blade thin — render `{{ $this->form }}`, a schema, or `<x-filament-widgets::widgets />`, not bespoke markup. Build the page body from a Schema of built-in **components + prime components** (`Text`/`Icon`/`Image`/`UnorderedList`) rather than hand-written HTML. See the hub's "Prefer built-in components over custom Blade" ladder.
 - **SHOULD** reserve custom Blade in the page body for genuinely non-Filament layouts; even then, wrap content in `<x-filament::section>` so it stays themed.
+- **PREFER**, for a genuinely-custom *interactive* piece, embedding it as its own Livewire component — `@livewire(MyWidget::class, [...])` in the page Blade, or `Livewire::make(MyWidget::class)` inside a page schema — over hand-coding the whole page's interactivity. Same principle as resource pages: build only the custom piece, embed it. See `app/Filament/Resources/Pages/CLAUDE.md` → "Custom page content" and the hub → "Prefer embedding a Livewire component over a custom page".
 
 ## Header / footer actions
 
