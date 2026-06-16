@@ -49,3 +49,95 @@ Also inspect the model, casts, relationships, indexes, policy, existing
 - Search, sort, and filters behave correctly.
 - Dot-notation columns can render.
 - Row actions, bulk actions, and authorization paths work.
+
+## Deep Pattern: Custom Column Choices
+
+First exhaust built-in columns and modifiers:
+
+- `->state(fn ($record) => ...)` for derived values
+- `->formatStateUsing(fn ($state) => ...)` for display formatting
+- `->badge()->color()->icon()` for status chips
+- `->description(fn ($record) => ..., position: 'below')` for a second line
+- trusted `->html()` only when the HTML is not user-controlled
+
+Then choose between two Blade-backed hatches:
+
+| Pattern | Method | Use when |
+| ------- | ------ | -------- |
+| Extraction wrapper | `static make(): TextColumn` returns a configured built-in | a built-in works but has heavy/repeated config |
+| Custom column class | extends `Filament\Tables\Columns\Column` and declares `$view` | no built-in can render the cell |
+
+Use `ViewColumn` for one-off bespoke cells:
+
+```php
+ViewColumn::make('rating')
+    ->view('filament.tables.columns.star-rating')
+    ->viewData(['max' => 5])
+    ->sortable();
+```
+
+For a reusable custom type, generate a table column class and expose config via
+getters. Public getters become variable functions in the view (`getSpeed()` to
+`$getSpeed()`):
+
+```php
+final class AudioPlayerColumn extends Column
+{
+    protected string $view = 'filament.tables.columns.audio-player-column';
+
+    protected float | Closure | null $speed = null;
+
+    public function speed(float | Closure | null $speed): static
+    {
+        $this->speed = $speed;
+
+        return $this;
+    }
+
+    public function getSpeed(): ?float
+    {
+        return $this->evaluate($this->speed);
+    }
+}
+```
+
+Never query inside column Blade; it renders once per row. Compute through
+`->state(...)` and eager-load in the resource query.
+
+## Deep Pattern: Card Grid Tables
+
+For people directories, product galleries, media libraries, or similar card
+UIs, keep the table and use table column layout components:
+
+| Component | Role |
+| --------- | ---- |
+| `Layout\Stack` | stacks columns vertically inside a card |
+| `Layout\Split` | lays columns horizontally inside a card |
+| `Layout\Grid` | arranges columns in a grid inside a card |
+| `Layout\Panel` | adds bordered/background card chrome |
+| `Table::contentGrid([...])` | lays the cards across the page |
+
+```php
+return $table
+    ->columns([
+        Split::make([
+            ImageColumn::make('profile_image')
+                ->imageHeight(150)
+                ->imageWidth(120)
+                ->grow(false),
+
+            Stack::make([
+                TextColumn::make('name')->searchable(),
+                TextColumn::make('location'),
+                TextColumn::make('profession')->color('gray'),
+            ])->grow(),
+        ]),
+    ])
+    ->contentGrid(['md' => 2, 'xl' => 3])
+    ->recordUrl(fn (User $record) => UserResource::getUrl('view', [$record]))
+    ->paginated([9, 18, 27]);
+```
+
+Use pagination counts that are multiples of the widest grid column count. Use
+`recordUrl()` or real `Action`s for card buttons; do not inject raw button
+Blade through a `TextColumn`.

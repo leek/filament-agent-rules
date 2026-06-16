@@ -213,11 +213,9 @@ protected function getHeaderWidgets(): array
 
 ## Layout
 
-| Property                            | Effect                                                            |
-| ----------------------------------- | ----------------------------------------------------------------- |
-| `protected int $columnSpan = 1;`    | Grid columns to occupy (1–12 or `'full'`)                         |
-| `protected int $sort = 1;`          | Display order                                                     |
-| `protected static bool $isLazy = true;` | Defer load until visible — **MUST** use for any widget that runs an expensive query |
+- `protected int|string|array $columnSpan = 1;` controls dashboard grid width (`1`–`12` or `'full'`).
+- `protected int $sort = 1;` controls display order.
+- `protected static bool $isLazy = true;` defers load until visible — **MUST** use for any widget that runs an expensive query.
 
 ## Polling
 
@@ -242,7 +240,3 @@ public static function canView(): bool
 - **MUST** cache or pre-compute any aggregate that scans >10k rows.
 - **SHOULD** use `$isLazy = true` for any widget that hits the DB; the dashboard renders the skeleton immediately and loads each widget independently.
 - **AVOID** raw SQL in widgets — wrap a query object or trend helper instead.
-
-## Additional notes
-
-- Deferred filters on chart widgets keep slow aggregate filters from auto-firing until the user clicks Apply.

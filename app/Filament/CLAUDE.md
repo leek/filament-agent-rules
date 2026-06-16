@@ -61,11 +61,9 @@ Filament leans heavily on fluent builders inside static methods (`form(Schema $s
 
 ## How schemas work — the component tree
 
-Forms, infolists, page bodies, action modals, and wizard steps are all the **same structure**: a `Filament\Schemas\Schema` object holding a tree of components. Internalize this one model and most "I need a custom page/Blade view" problems dissolve — almost any layout is just components arranged in a schema.
+Forms, infolists, page bodies, action modals, and wizard steps all compose a `Filament\Schemas\Schema` component tree. Most "custom layout" work should stay inside that tree.
 
-**A `Schema` is a container.** You hand it a flat array of components via `->components([...])`. That single shape is what `form(Schema $schema)`, `infolist(Schema $schema)`, a page's `content(Schema $schema)`, an action's modal `->schema([...])`, and a wizard step's `->schema([...])` all build and return.
-
-**Four kinds of component compose into one tree** — mix them freely in the same schema:
+Use the right component category:
 
 | Category | Namespace | Role | Examples |
 | -------- | --------- | ---- | -------- |
@@ -74,9 +72,7 @@ Forms, infolists, page bodies, action modals, and wizard steps are all the **sam
 | **Layout** | `Filament\Schemas\Components\*` | structure / arrange other components | `Section`, `Grid`, `Tabs`, `Wizard`, `Fieldset`, `Split` |
 | **Prime** | `Filament\Schemas\Components\*` | render static / computed content | `Text`, `Icon`, `Image`, `UnorderedList` |
 
-Layout and prime components share the `Filament\Schemas\Components\*` namespace precisely *because* they aren't form- or infolist-specific — the same `Section`/`Grid` structures either one. (Actions are also insertable into a schema.)
-
-**Nesting is infinite.** A layout component nests a **child schema** via `->schema([...])`; those children can themselves be layout components with their own `->schema([...])`, to any depth:
+Top-level schema uses `->components([...])`; layout children use `->schema([...])`:
 
 ```php
 $schema->components([                      // top-level Schema → ->components()
@@ -95,7 +91,7 @@ $schema->components([                      // top-level Schema → ->components(
 
 ## Prefer built-in components over custom Blade
 
-Filament renders almost any UI declaratively. A custom Blade view is the **last** resort, not the first — it skips Filament's theming, dark mode, spacing, and state handling, and rots out of sync with the rest of the panel. Before writing a `->view(...)`, a `ViewField`/`ViewEntry`, a custom-view schema component, or a Blade-backed `Widget`, walk this ladder and stop at the first rung that works:
+Custom Blade skips Filament theming, dark mode, spacing, and state handling. Before writing `->view(...)`, a `ViewField`/`ViewEntry`, a custom-view schema component, or a Blade-backed `Widget`, walk this ladder:
 
 1. **A built-in field / column / entry** — `TextInput`, `Select`, `TextColumn`, `TextEntry`, `IconColumn`, `ImageEntry`, … for record data.
 2. **A prime component** — `Text`, `Icon`, `Image`, `UnorderedList` (`Filament\Schemas\Components\*`) for *arbitrary* content (headings, notes, computed text, logos, bullet lists) in any schema. See `app/Filament/Resources/Schemas/CLAUDE.md` → "Prime components".
@@ -104,7 +100,7 @@ Filament renders almost any UI declaratively. A custom Blade view is the **last*
 5. **A custom component class** that returns a configured built-in (the `make()` pattern) — for reusable heavy config.
 6. **Custom Blade** (`->view(...)`, `ViewField`, `ViewEntry`, `ViewColumn`, a `Widget` view) — only when the markup is genuinely bespoke (a third-party embed, a hand-built chart, a non-Filament layout). For table cells specifically, `ViewColumn` and full custom column classes are the sanctioned hatch — see `app/Filament/Resources/Tables/CLAUDE.md` → "Custom columns".
 
-- **MUST** exhaust rungs 1–5 before dropping to Blade. "I'll just make a quick Blade view" is how a panel ends up with a dozen unthemed one-off partials.
+- **MUST** exhaust rungs 1–5 before dropping to Blade.
 - **MUST**, when you do reach rung 6, wrap the markup in Filament's wrappers (`<x-filament::section>`, `<x-filament-widgets::widget>`, `<x-filament-panels::page>`) so theming and dark mode still apply.
 - **PREFER** extracting a reusable custom **component class** (rung 5) over copying a Blade partial — it composes with a schema like any other component.
 
@@ -188,33 +184,7 @@ All live in `Filament\Support\Contracts\*`. Implement only the ones an enum need
 | `HasIcon` | `getIcon(): string\|BackedEnum\|Htmlable\|null` | `TextColumn` / `TextEntry` (with `->badge()`); `IconColumn` / `IconEntry`; `ToggleButtons` |
 | `HasDescription` | `getDescription(): string\|Htmlable\|null` | `Radio` / `CheckboxList` option descriptions |
 
-- **SHOULD** implement `HasDescription` whenever a `Radio` / `CheckboxList` enum's options need explaining — Filament renders the description beneath each label, turning a bare list into a self-documenting choice with zero extra wiring:
-
-  ```php
-  enum Visibility: string implements HasLabel, HasDescription
-  {
-      case Public = 'public';
-      case Private = 'private';
-
-      public function getLabel(): string
-      {
-          return ucfirst($this->value);
-      }
-
-      public function getDescription(): ?string
-      {
-          return match ($this) {
-              self::Public  => 'Anyone with the link can view.',
-              self::Private => 'Only you and invited members.',
-          };
-      }
-  }
-
-  Radio::make('visibility')->options(Visibility::class);   // labels AND descriptions render automatically
-  ```
-
-- An implementing method **may narrow** the interface's union return type — the `OrderStatus` example above uses `getLabel(): string` and `getColor(): string`, which is fine (covariant return types are allowed). Pick the narrowest type that fits.
-
+- **SHOULD** implement `HasDescription` when `Radio` / `CheckboxList` enum options need explanatory text; `Radio::make('visibility')->options(Visibility::class)` renders labels and descriptions automatically.
 - **MUST** keep enum case names PascalCase and backed values snake_case — backed values become DB column values; casing matters for migrations and search.
 - **MUST** use semantic colors (`success`/`warning`/`danger`/`info`/`primary`/`gray`) — Filament maps them through the theme, so palette changes propagate without touching enums.
 - **PREFER** an enum over a `string` column the moment a state machine appears (more than 2 values, or any forbidden transition).
@@ -263,7 +233,7 @@ Custom columns, custom entries, `ViewColumn`/`ViewEntry`, and any `->view(...)` 
 
 ## Notifications (cross-cutting)
 
-`Filament\Notifications\Notification` is the canonical way to surface feedback from any panel surface — Resource pages, Actions, Widgets, custom Pages, queued Jobs.
+`Filament\Notifications\Notification` is the canonical feedback surface for Resource pages, Actions, Widgets, custom Pages, and queued Jobs.
 
 ```php
 use Filament\Notifications\Notification;
@@ -275,13 +245,6 @@ Notification::make()
     ->send();
 ```
 
-| Method        | When                                              |
-| ------------- | ------------------------------------------------- |
-| `->success()` | Operation completed                               |
-| `->danger()`  | Operation failed / hard error                     |
-| `->warning()` | Risky-but-not-failed state, expiring data         |
-| `->info()`    | Neutral info, "new version available", etc.       |
-
 Rules:
 
 - **MUST** call `->send()` — without it the notification is built and discarded silently. Easiest bug to ship.
@@ -290,24 +253,13 @@ Rules:
 - **PREFER** `->send()` (toast) for ephemeral feedback; **PREFER** `->sendToDatabase($user)` for events the admin should find later (new comment, mention, export ready).
 - **AVOID** "Saved!" notifications on routine CRUD; Filament already ships a default save notification — duplicating it just adds noise. Override `getSavedNotification()` on the page if you need to customise.
 
-### Database (notification center)
+### Database notification center
 
 Enable on the `PanelProvider`:
 
 ```php
 ->databaseNotifications()
 ->databaseNotificationsPolling('60s') // or null to disable polling
-```
-
-Send to specific user(s):
-
-```php
-Notification::make()
-    ->title('New comment on your post')
-    ->actions([NotificationAction::make('view')->url(route('posts.show', $post))])
-    ->sendToDatabase($user);
-
-Notification::make()->title('Maintenance tonight')->sendToDatabase($admins);
 ```
 
 - **MUST NOT** poll the notification center faster than 30s in production — every poll runs a query per logged-in admin.
@@ -332,8 +284,3 @@ Notification::make()->title('Maintenance tonight')->sendToDatabase($admins);
 ```
 
 - **MUST** wrap fallible actions in try/catch and emit a `danger` notification — uncaught exceptions bubble to Livewire and render as a generic 500.
-
-## Runtime notes
-
-- Custom themes require the Tailwind version supported by the installed Filament release. Default themes work without a custom build.
-- Current Filament releases use Livewire 4 internally, so Livewire 4 attributes (`#[Locked]`, `#[Computed]`, etc.) are available inside Filament pages/widgets.

@@ -48,7 +48,7 @@ Action::make('approve')
 ## Rules
 
 - **MUST** call `->requiresConfirmation()` on any destructive or irreversible action.
-- **MUST** set `->modalIcon(...)` + `->modalIconColor(...)` on any action that opens a modal or slide-over (confirmation, form, or wizard) — a bare modal looks unfinished. Pick an icon that matches the action and a color that matches intent (`danger` for destructive, `success` for confirm-positive, `warning` for risky, `primary` otherwise). See "Modal icon + color" below. **Skip only when the project already sets these globally via `configureUsing` — check the `FilamentServiceProvider` first (see `app/Providers/Filament/CLAUDE.md`).**
+- **MUST** set `->modalIcon(...)` + `->modalIconColor(...)` on modal/slide-over actions unless the project already does this globally via `configureUsing`. Use intent colors: `danger`, `success`, `warning`, `primary`.
 - **MUST** delegate work via `->action(fn ($record) => app(SomeAction::class)->run($record))` — never write the business logic inline. Filament Actions are presentational glue.
 - **MUST** use `->visible(...)` / `->hidden(...)` (or `->authorize('ability', $record)`) to hide actions the policy denies. Showing-but-failing creates a confused admin.
 - **SHOULD** pair every long-running action with a `Notification` in `->after(...)` so the admin gets explicit success/failure feedback.
@@ -83,6 +83,7 @@ Action::make('reject')
 ```
 
 - **MUST** validate via the `->schema([...])` definition rather than re-validating inside `->action(...)`. Filament rejects the modal submit on validation failure.
+- **MUST** configure modal input with `->schema([...])`, not `->form([...])`.
 
 ## Bulk actions
 
@@ -137,10 +138,9 @@ ApproveAction::make()
 
 ### Reusable across surfaces
 
-A single extracted Action class drops into header, row, and bulk surfaces with no duplication. Same `::make()` call site, Filament infers the context:
+Use one extracted class for shared behavior; keep bulk variants as `BulkAction` classes.
 
 ```php
-// On the List page (header)
 protected function getHeaderActions(): array
 {
     return [
@@ -152,23 +152,11 @@ protected function getHeaderActions(): array
 $table->recordActions([
     EmailCustomerAction::make(),
 ]);
-
-// On the resource table (bulk variant)
-$table->toolbarActions([
-    BulkActionGroup::make([
-        UpdateCustomerCountryBulkAction::make(),
-    ]),
-]);
-
-// On a relation manager's table
-$table->headerActions([
-    EmailCustomerAction::make(),
-]);
 ```
 
 - **MUST** extract the moment an action appears in ≥2 surfaces. Inline duplication drifts — the row-action `->visible(...)` and the header-action `->visible(...)` will diverge silently.
 - **MUST** keep `setUp()` free of surface-specific assumptions (e.g. don't assume `$record` exists — header actions don't have one). Branch on `$this->getRecord()` if behaviour must vary.
-- **SHOULD** ship one bulk variant per record action (`EmailCustomerAction` + `EmailCustomersBulkAction`) when bulk is meaningful — bulk classes extend `BulkAction`, not `Action`.
+- **SHOULD** ship a separate bulk variant (`EmailCustomerAction` + `EmailCustomersBulkAction`) when bulk is meaningful.
 
 ## Halting / cancelling
 
@@ -198,8 +186,6 @@ Inside an `->action(...)` callback, bail out cleanly with `$action->halt()` or `
 
 ## Modal icon + color
 
-Every modal/slide-over action **MUST** carry a `modalIcon` and `modalIconColor`. The icon anchors the modal visually; the color signals intent before the admin reads a word.
-
 ```php
 DeleteAction::make()
     ->modalIcon(Heroicon::OutlinedTrash)
@@ -224,7 +210,7 @@ Action::make('export')
 
 - **MUST** match `modalIconColor` to intent, not to the trigger button's color — a `gray` "More" button can still open a `danger` delete confirmation.
 - **SHOULD** reuse the model's icon for create/edit modals (e.g. an Order modal uses the same icon as the Order resource nav) so the modal reads as "an Order thing."
-- **MUST NOT** repeat these per-action if the project sets them globally (e.g. `DeleteAction::configureUsing(...)` in the `FilamentServiceProvider`). Read the provider before adding — don't fight a global default. See `app/Providers/Filament/CLAUDE.md`.
+- **MUST NOT** repeat these per-action if `FilamentServiceProvider` sets them globally.
 
 ## Wizard (multi-step) action
 
@@ -253,7 +239,7 @@ Action::make('createOrder')
 - **MUST** validate inside each `Wizard\Step` — Filament blocks "Next" until the step's fields pass.
 - **PREFER** wizard over a single long modal once you cross 3 logical sections; users abandon long single-page modals.
 
-## Styling reference
+## Action chrome
 
 ```php
 Action::make('publish')
@@ -306,40 +292,9 @@ Pair a destructive action with an undo button via `Notification::actions`:
 | `->groupedBulkActions([...])` | toolbar | shorthand when every bulk action fits one group |
 | `getHeaderActions()` on View/Edit page | top of the page | per-record ops outside the table context |
 
-## Modal forms — `->schema()` not `->form()`
-
-```php
-EditAction::make()
-    ->schema([
-        TextInput::make('title')->required(),
-        Textarea::make('notes'),
-    ])
-    ->action(function (array $data, Order $record) { /* ... */ });
-```
-
-- Actions configure modal input via `->schema([...])`.
-- The submitted state arrives in the callback as `$data`.
-
 ## Imports — `Filament\Actions\*`
 
-```php
-use Filament\Actions\Action;
-use Filament\Actions\ActionGroup;
-use Filament\Actions\BulkAction;
-use Filament\Actions\BulkActionGroup;
-use Filament\Actions\CreateAction;
-use Filament\Actions\DeleteAction;
-use Filament\Actions\DeleteBulkAction;
-use Filament\Actions\EditAction;
-use Filament\Actions\ForceDeleteAction;
-use Filament\Actions\ForceDeleteBulkAction;
-use Filament\Actions\ReplicateAction;
-use Filament\Actions\RestoreAction;
-use Filament\Actions\RestoreBulkAction;
-use Filament\Actions\ViewAction;
-```
-
-- Use `Filament\Actions\*` for action classes. Do not import table/form scoped action namespaces for current Filament action classes.
+Use `Filament\Actions\*` for all current action classes (`Action`, `BulkAction`, `CreateAction`, `EditAction`, `DeleteAction`, `ImportAction`, `ExportAction`, groups, restore/force-delete variants). Do not import old table/form scoped action namespaces.
 
 ## Notifications inside actions
 
@@ -410,7 +365,3 @@ Wire into the table:
 - **MUST** queue imports of >1k rows — the action returns immediately and emails the admin when done.
 - **MUST** put `resolveRecord()` logic in the Importer, not in `beforeFill` — Filament uses it to decide insert-vs-update per row.
 - **AVOID** wide CSV imports (>30 columns); split into multiple importers per concern (order header vs items vs payments).
-
-## Additional notes
-
-- **Stacked action modals** — multiple modals can stack, useful for confirm-then-form-then-confirm flows.

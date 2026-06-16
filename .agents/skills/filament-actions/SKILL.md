@@ -49,3 +49,61 @@ slide-over, icon, or confirmation settings locally.
 - Bulk actions are authorized and do not process huge selections in one
   request.
 - Tests call the action and cover validation/error paths where meaningful.
+
+## Deep Pattern: Reuse Across Surfaces
+
+An extracted `Action` can be reused on page headers, table rows, and relation
+manager headers when its setup does not assume a record exists. Keep bulk
+behavior in a separate `BulkAction` class.
+
+```php
+protected function getHeaderActions(): array
+{
+    return [
+        EmailCustomerAction::make(),
+    ];
+}
+
+$table->recordActions([
+    EmailCustomerAction::make(),
+]);
+
+$table->toolbarActions([
+    BulkActionGroup::make([
+        EmailCustomersBulkAction::make(),
+    ]),
+]);
+```
+
+If behavior varies by surface, branch on `$this->getRecord()` or split the
+action. Do not duplicate the same `visible()`, authorization, modal, and
+notification chains inline across multiple surfaces.
+
+## Deep Pattern: Modal And Notification Details
+
+Prefer modal intent over trigger-button color:
+
+```php
+DeleteAction::make()
+    ->modalIcon(Heroicon::OutlinedTrash)
+    ->modalIconColor('danger');
+
+Action::make('approve')
+    ->modalIcon(Heroicon::OutlinedCheckCircle)
+    ->modalIconColor('success');
+```
+
+For reversible destructive actions, put the undo in the notification action
+only when the mutation is genuinely reversible:
+
+```php
+Notification::make()
+    ->title('Order archived')
+    ->success()
+    ->actions([
+        NotificationAction::make('undo')
+            ->color('gray')
+            ->action(fn () => app(RestoreOrderAction::class)->run($record)),
+    ])
+    ->send();
+```

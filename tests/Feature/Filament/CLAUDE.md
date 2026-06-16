@@ -56,44 +56,17 @@ it('renders the list page', function () {
 ## Table assertions
 
 ```php
-it('lists orders', function () {
-    $orders = Order::factory()->count(5)->create();
+it('lists, searches, filters, and renders columns', function () {
+    $match = Order::factory()->create(['reference' => 'INV-001', 'status' => 'pending']);
+    $miss = Order::factory()->create(['reference' => 'INV-999', 'status' => 'paid']);
 
     livewire(ListOrders::class)
-        ->assertCanSeeTableRecords($orders);
-});
-
-it('searches by reference', function () {
-    $match = Order::factory()->create(['reference' => 'INV-001']);
-    $miss  = Order::factory()->create(['reference' => 'INV-999']);
-
-    livewire(ListOrders::class)
+        ->assertCanSeeTableRecords([$match, $miss])
         ->searchTable('INV-001')
         ->assertCanSeeTableRecords([$match])
-        ->assertCanNotSeeTableRecords([$miss]);
-});
-
-it('sorts by created_at desc by default', function () {
-    $orders = Order::factory()->count(3)->create();
-
-    livewire(ListOrders::class)
-        ->assertCanSeeTableRecords($orders->sortByDesc('created_at'), inOrder: true);
-});
-
-it('filters by status', function () {
-    $pending = Order::factory()->create(['status' => 'pending']);
-    $paid    = Order::factory()->create(['status' => 'paid']);
-
-    livewire(ListOrders::class)
+        ->assertCanNotSeeTableRecords([$miss])
         ->filterTable('status', 'pending')
-        ->assertCanSeeTableRecords([$pending])
-        ->assertCanNotSeeTableRecords([$paid]);
-});
-
-it('renders columns', function () {
-    Order::factory()->create();
-
-    livewire(ListOrders::class)
+        ->assertCanSeeTableRecords([$match])
         ->assertCanRenderTableColumn('reference')
         ->assertCanRenderTableColumn('customer.name')
         ->assertCanRenderTableColumn('total_cents');
@@ -113,7 +86,7 @@ livewire(ListOrders::class)
     ->assertCanNotRenderTableColumn('deleted_at');
 ```
 
-Bulk action flow (select first, then call):
+Bulk action flow:
 
 ```php
 livewire(ListOrders::class)
@@ -177,15 +150,6 @@ it('updates an order', function () {
 - **MUST** test `unique` rules with `ignoreRecord: true` on Edit pages — easy regression when developers forget the flag.
 
 ## Action assertions
-
-| Helper                                | Asserts                                       |
-| ------------------------------------- | --------------------------------------------- |
-| `callAction('name')`                  | Run a header/footer action                    |
-| `callAction('name', data: [...])`     | Run an action with modal form data            |
-| `callTableAction(Class, $record)`     | Run a row action on a specific record         |
-| `callTableBulkAction(Class, $records)`| Run a bulk action on a collection             |
-| `assertActionVisible('name')` / `assertActionHidden('name')` | Visibility           |
-| `assertHasNoActionErrors()` / `assertHasActionErrors([...])` | Modal-form validation |
 
 ```php
 it('publishes a draft', function () {
@@ -333,8 +297,4 @@ For every Resource, **MUST** cover:
 - **AVOID** asserting on rendered HTML strings except for known-stable text (`assertSee('Total')`); markup is volatile across Filament minor versions.
 - **PREFER** asserting on DB state (`assertDatabaseHas`, `expect($record->refresh()->...)`) over Livewire `assertSet(...)`.
 - **MUST** test the form's `->live()` dependent fields by `->set('data.parent_id', $id)` then `->assertSet('data.child_field', ...)` — these break silently when relationships change.
-
-## Additional notes
-
-- For hydrated form state, prefer `assertFormSet([...])` — already shown above.
-- Deferred filters: tests **MUST** call `->filterTable(...)` then `->call('applyTableFilters')` before asserting, otherwise the filter hasn't applied yet.
+- **MUST** call `->filterTable(...)` then `->call('applyTableFilters')` before asserting deferred filters.

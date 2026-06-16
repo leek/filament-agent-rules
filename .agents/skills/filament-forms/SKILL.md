@@ -50,3 +50,69 @@ resources.
 - Re-declaring global component defaults.
 - Custom Blade before built-in fields, layout components, prime components, or
   reusable schema component classes have been exhausted.
+
+## Deep Pattern: Component Class Vs Fragment
+
+Use a component class when one heavily configured field deserves a named,
+reusable builder:
+
+```php
+final class CustomerCountrySelect
+{
+    public static function make(): Select
+    {
+        return Select::make('country_id')
+            ->relationship('country', 'name')
+            ->searchable(['name', 'iso_code'])
+            ->preload()
+            ->required();
+    }
+}
+```
+
+Use a fragment when a logical cluster returns several components:
+
+```php
+final class ContactFields
+{
+    public static function get(): array
+    {
+        return [
+            TextInput::make('email')->email()->required(),
+            TextInput::make('phone')->tel(),
+            TextInput::make('website')->url()->prefix('https://'),
+        ];
+    }
+}
+```
+
+Reserve `make()` for one Filament component and `get()` for an array. That
+name difference keeps call sites readable.
+
+## Deep Pattern: Client-Side State Reactions
+
+Use the `*Js` methods when the reaction is pure form state and needs no PHP,
+database, auth, relationship, enum, or cast logic:
+
+```php
+Select::make('insurance_provider_id')
+    ->afterStateUpdatedJs(<<<'JS'
+        $set('insurance_plan_id', null)
+        JS);
+
+TextInput::make('other_reason')->visibleJs("\$get('reason') === 'other'");
+```
+
+Inside these strings, `$get('field')` reads state, `$set('field', value)`
+mutates state, and `$state` is the current field value. It is JavaScript
+syntax (`===`, `!==`, `&&`), not PHP. Never concatenate user input into a JS
+string; read values through `$get()` or `$state`.
+
+When server logic is required, use PHP callbacks with a narrow render scope:
+
+```php
+Select::make('product_variant_id')
+    ->live()
+    ->afterStateUpdated(fn (Set $set) => $set('price_cents', null))
+    ->partiallyRenderComponentsAfterStateUpdated(['price_cents']);
+```

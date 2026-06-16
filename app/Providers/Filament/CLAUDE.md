@@ -41,40 +41,15 @@ public function boot(): void
 
 `configureUsing` runs for **every** instance created afterwards. Set a value here and you never repeat it at a call site — and an agent that doesn't know it's set will either duplicate it or be surprised by behavior that isn't in the schema/table/action file.
 
-### What projects commonly configure (one project's choices — illustrative, not a mandate)
+### Common global defaults to scan for
 
-This is a real `FilamentServiceProvider` boot block, abridged. Treat it as a **map of what to look for**, not a spec to copy — every project picks differently. Per the hub rule, your job is to *detect* what a given project has set, not to impose these.
+Treat these as a **map of what to look for**, not a spec to copy:
 
-```php
-// Modals: everything is a slide-over EXCEPT confirmation dialogs and attach/associate.
-Action::configureUsing(fn (Action $a) => $a->bootUsing(function () use ($a): void {
-    if (! $a->isConfirmationRequired() && ! $a instanceof AttachAction && ! $a instanceof AssociateAction) {
-        $a->slideOver();
-    }
-}));
-
-// Default action icons + behavior, so call sites stay clean.
-ViewAction::configureUsing(fn (ViewAction $a) => $a->icon(Heroicon::OutlinedEye));
-EditAction::configureUsing(fn (EditAction $a) => $a->icon(Heroicon::OutlinedPencil));
-DeleteAction::configureUsing(fn (DeleteAction $a) => $a->icon(Heroicon::OutlinedTrash));
-CreateAction::configureUsing(fn (CreateAction $a) => $a->createAnother(false)->slideOver());
-
-// Field defaults.
-TextInput::configureUsing(fn (TextInput $c) => $c->trim());
-Textarea::configureUsing(fn (Textarea $c) => $c->rows(4));
-DateTimePicker::configureUsing(fn (DateTimePicker $c) => $c->seconds(false));
-FileUpload::configureUsing(fn (FileUpload $c) => $c->moveFiles());
-
-// Destructive Repeater/Builder rows confirm before delete.
-Repeater::configureUsing(fn (Repeater $c) => $c->deleteAction(fn (Action $a) => $a->requiresConfirmation()));
-
-// House date/time display formats, read from a translation file.
-Schema::configureUsing(fn (Schema $s) => $s
-    ->defaultDateDisplayFormat(__('app.date_format'))
-    ->defaultDateTimeDisplayFormat(__('app.datetime_format')));
-```
-
-Common knobs to scan for: modal presentation (`slideOver`), `Select` native/searchable/preload, table pagination + persistence + striping, default action icons + `modalIcon`/`modalIconColor`, `createAnother(false)`, date/time formats, `translateLabel()`, `Textarea` rows, `FileUpload` disk/visibility/`moveFiles`, `Repeater`/`Builder` delete confirmation.
+- action presentation: `slideOver`, icons, `modalIcon`, `modalIconColor`, `createAnother(false)`
+- fields: `Select` native/searchable/preload, `TextInput::trim()`, `Textarea` rows, date/time picker precision
+- uploads: disk, visibility, directory, `moveFiles`, accepted types
+- tables: pagination options, default page size, filters/sort persistence, striping
+- schemas: date/time display formats, translated labels, Repeater/Builder delete confirmation
 
 ### Rules
 
@@ -245,28 +220,6 @@ php artisan make:filament-page Tenancy/RegisterTeam --type=tenant-registration
 php artisan make:filament-page Tenancy/EditTeamProfile --type=tenant-profile
 ```
 
-```php
-final class RegisterTeam extends RegisterTenant
-{
-    public static function getLabel(): string { return 'Register team'; }
-
-    public function form(Schema $schema): Schema
-    {
-        return $schema->components([
-            TextInput::make('name')->required()->maxLength(255),
-            TextInput::make('slug')->required()->unique('teams', 'slug')->maxLength(255),
-        ]);
-    }
-
-    protected function handleRegistration(array $data): Team
-    {
-        $team = Team::create($data);
-        $team->members()->attach(auth()->user(), ['role' => 'owner']);
-        return $team;
-    }
-}
-```
-
 - **MUST** attach the registering user to the new tenant inside `handleRegistration()` — Filament won't do this for you.
 
 ### Validation: tenant-scoped uniqueness
@@ -306,12 +259,11 @@ Select::make('customer_id')
 // Path-based: /admin/{tenant}/orders
 ->tenant(Team::class, slugAttribute: 'slug')
 
-// Subdomain: {tenant}.example.com/admin/orders
-->tenant(Team::class, slugAttribute: 'slug')
+// Add for subdomain tenancy: {tenant}.example.com/admin/orders
 ->tenantDomain('{tenant:slug}.example.com')
 ```
 
-- **MUST** add a wildcard subdomain DNS record + Apache/Nginx config before shipping subdomain tenancy.
+- **MUST** add wildcard DNS and web-server config before shipping subdomain tenancy.
 - **AVOID** mixing subdomain and path tenancy on different panels in the same app — session/cookie scope gets confusing.
 
 ### Notification center
@@ -408,8 +360,3 @@ php artisan filament:optimize
 - **MUST** run `filament:optimize` in the production deploy pipeline — it caches component discovery and shaves hundreds of ms off the first page-load query.
 - **MUST NOT** run `filament:optimize` in local dev — newly added resources/widgets won't be discovered until the cache is cleared.
 - Pair with `php artisan filament:clear-cached-components` in a `post-update-cmd` Composer hook so devs don't get stuck after pulling new resources.
-
-## Runtime notes
-
-- Current Filament releases use Livewire 4 internally, so Livewire 4 attributes (`#[Locked]`, `#[Computed]`, `#[On]`, etc.) are available inside pages/widgets.
-- Custom themes require the Tailwind version supported by the installed Filament release. Confirm the project's frontend build before changing theme configuration.

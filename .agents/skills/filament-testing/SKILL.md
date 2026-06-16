@@ -47,3 +47,20 @@ database refresh conventions before adding tests.
 - Assertions check database state after mutations.
 - Tests cover the regression risk introduced by the change, not unrelated
   framework behavior.
+
+## Helper Reference
+
+Common Filament Livewire helpers:
+
+| Helper | Use |
+| ------ | --- |
+| `callAction('name')` | header/footer action |
+| `callAction('name', data: [...])` | action with modal form state |
+| `callTableAction('name', $record)` | row action |
+| `callTableBulkAction('name', $records)` | bulk action |
+| `assertActionVisible('name')` / `assertActionHidden('name')` | action visibility |
+| `assertHasNoActionErrors()` / `assertHasActionErrors([...])` | action modal validation |
+| `assertFormSet([...])` | hydrated form state |
+
+For deferred table filters, call `filterTable(...)` and then
+`call('applyTableFilters')` before asserting records.

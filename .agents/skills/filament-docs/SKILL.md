@@ -50,6 +50,10 @@ Always read the hub (`app/Filament/CLAUDE.md`) for non-trivial work. It
 contains cross-cutting rules such as global defaults, schema composition,
 authorization, and the custom Blade escape ladder.
 
+Also check `composer.json`, `composer.lock`, or `vendor/` for a local Filament
+Blueprint install; if present, read and follow its installed guidance alongside
+these rules before consulting external docs.
+
 ## Official Docs
 
 If local rules do not answer a method signature or edge case, consult current
@@ -61,3 +65,40 @@ rules first and mention any docs-derived assumption.
 
 Use the current Filament panel builder API consistently. Do not branch examples
 by Filament major version unless the user explicitly asks for a migration note.
+
+## Deep Pattern: Global Defaults Scan
+
+When a task touches panel-wide behavior, inspect providers for
+`configureUsing()` blocks before editing local resources. Common defaults to
+look for:
+
+- action presentation: `slideOver`, icons, `modalIcon`, `modalIconColor`,
+  `createAnother(false)`
+- fields: `Select` native/searchable/preload, `TextInput::trim()`,
+  `Textarea` rows, date/time picker precision
+- uploads: disk, visibility, directory, `moveFiles`, accepted file types
+- tables: page sizes, default pagination, filter/sort/search persistence,
+  striping
+- schemas: date/time display formats, translated labels,
+  Repeater/Builder delete confirmation
+
+Use `bootUsing()` inside `configureUsing()` when the default depends on the
+component's final state:
+
+```php
+Action::configureUsing(fn (Action $action) => $action->bootUsing(function () use ($action): void {
+    if (! $action->isConfirmationRequired()) {
+        $action->slideOver();
+    }
+}));
+
+DeleteAction::configureUsing(fn (DeleteAction $action) => $action
+    ->icon(Heroicon::OutlinedTrash)
+    ->modalIcon(Heroicon::OutlinedTrash)
+    ->modalIconColor('danger'));
+
+Select::configureUsing(fn (Select $select) => $select
+    ->native(false)
+    ->searchable(fn (Select $component) => $component->hasRelationship())
+    ->preload(fn (Select $component) => $component->isSearchable()));
+```

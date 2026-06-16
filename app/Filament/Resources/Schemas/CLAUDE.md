@@ -155,51 +155,7 @@ $schema->components([
 - **PREFER** (house polish) `->compact()` sections with an `->icon(...)->iconColor('primary')` header — tighter and more scannable than the default. Match whatever the project's existing sections do.
 - **SHOULD** keep a `Section`'s own `->columns()` at 12 to match the page grid, so a `columnSpan(6)` means the same thing everywhere.
 
-#### Balance side-by-side section heights
-
-When sections share a row, a tall one (a `RichEditor`, 6+ fields) next to a short one (2–3 fields) leaves a lopsided gap. Stack the short sections in a nested `Grid` opposite the tall one so both columns end near the same height (count a `RichEditor`/`Textarea` as ~3–4 short fields):
-
-```php
-Grid::make(12)->schema([
-    Section::make('Overview')->columnSpan(8)->schema([
-        TextInput::make('name')->required(),
-        RichEditor::make('description')->columnSpanFull(),
-    ]),
-
-    // Short sections stacked to fill the same height as the tall one.
-    Grid::make(1)->columnSpan(4)->schema([
-        Section::make('Status')->schema([Select::make('status')->options(Status::class)]),
-        Section::make('Schedule')->schema([
-            DatePicker::make('starts_at'),
-            DatePicker::make('ends_at'),
-        ]),
-    ]),
-]);
-```
-
-- **SHOULD** balance adjacent section heights — equal *visual* height matters more than equal field counts.
-- If the project ships a `match-height` utility class (some do), `->extraAttributes(['class' => 'match-height'])` on the wrapping `Grid` equalizes column heights without restructuring — but that's project CSS, so confirm it exists first (don't assume defaults).
-
-## Common components
-
-| Component       | Use for                                                  |
-| --------------- | -------------------------------------------------------- |
-| `TextInput`     | strings, numbers, emails, URLs                           |
-| `Textarea`      | medium-length free text                                  |
-| `RichEditor`    | HTML content                                             |
-| `MarkdownEditor`| markdown content                                         |
-| `Select`        | one-of-N; supports `->relationship()`, `->searchable()`, `->preload()` |
-| `CheckboxList` / `Toggle` / `Checkbox` | booleans / multi-select          |
-| `Radio`         | small enums (≤5 options)                                 |
-| `DatePicker` / `DateTimePicker` / `TimePicker` | temporal fields           |
-| `FileUpload`    | uploads to a disk                                        |
-| `Repeater`      | array of sub-records (often via `->relationship()`)      |
-| `Builder`       | heterogeneous blocks (CMS-like content)                  |
-| `KeyValue`      | flat string→string map                                   |
-| `TagsInput`     | array of strings                                         |
-| `ColorPicker`   | hex color                                                |
-| `Hidden`        | non-editable but submitted                               |
-| `Placeholder`   | non-editable, non-submitted display                      |
+- **SHOULD** balance adjacent section heights — stack short sidebar sections opposite tall sections (`RichEditor`, large repeaters) so side-by-side layouts do not leave a lopsided gap.
 
 ## Field affordances — make every field self-explanatory
 
@@ -437,16 +393,12 @@ TextInput::make('other_reason')->visibleJs("\$get('reason') === 'other'");
 Toggle::make('is_staff')->hiddenJs("\$get('role') !== 'staff'");
 ```
 
-Inside a `*Js` expression: `$get('field')` reads state, `$set('field', value)` mutates it, `$state` is the current field's value — all client-side.
+Inside a `*Js` expression: `$get('field')` reads state, `$set('field', value)` mutates it, `$state` is the current field's value.
 
-**Limits — when you MUST fall back to the PHP version:**
-- **No PHP runs client-side.** Anything needing the database (`->options(fn () => Model::query()...)`), authorization, relationship lookups, or PHP enum/cast logic must use `->live()` + `->afterStateUpdated(fn ...)` / `->visible(fn ...)`. `$get()` in JS sees only what's already on the page.
-- **It's literally JavaScript, not PHP** — `===`, `!==`, `&&`, `.toLowerCase()`. The PHP-looking syntax is deceptive.
-- **XSS:** never concatenate user input into the JS string. Reading values via `$get()`/`$state` as *string values* is safe; injecting them as code is not.
-- `hiddenJs()` + `visibleJs()` on the same field must **both** resolve to visible for it to show.
-- For dynamic labels/content use `JsContent::make(<<<'JS' ... JS)` on `->label(...)` etc.
-
-- **PREFER** `visibleJs()` / `hiddenJs()` over `->visible(fn ...)` / `->hidden(fn ...)`, and `afterStateUpdatedJs()` over `afterStateUpdated()`, **whenever the condition is pure form state** — it removes a round-trip and the `->live()` requirement on the dependency.
+- **PREFER** `visibleJs()` / `hiddenJs()` and `afterStateUpdatedJs()` when the condition is pure form state — it removes a round-trip and the `->live()` requirement on the dependency.
+- **MUST** fall back to PHP callbacks for database, auth, relationship, enum, or cast logic. `$get()` in JS only sees state already on the page.
+- **MUST NOT** concatenate user input into JS strings; read user values via `$get()` / `$state` instead.
+- **MUST** remember this is JavaScript syntax (`===`, `!==`, `&&`), not PHP.
 
 ## Custom validation messages
 
@@ -516,34 +468,28 @@ Use on `CreateRecord` pages; on Edit pages, prefer Tabs.
 
 Prime components render *arbitrary* content directly in a schema (form, infolist, or page) — no Blade view required. Reach for these before hand-writing markup. They live in `Filament\Schemas\Components\*`.
 
-| Prime | Renders | Key methods |
-| ----- | ------- | ----------- |
-| `Text` | a string, `HtmlString`, or inline Markdown | `->color()`, `->badge()`, `->size(TextSize::…)`, `->weight(FontWeight::…)`, `->fontFamily(FontFamily::…)`, `->tooltip()`, `->js()` |
-| `Icon` | a `Heroicon` (or icon string) | `->color()`, `->size(IconSize::…)`, `->tooltip()` |
-| `Image` | an image by URL | `->imageWidth()` / `->imageHeight()` / `->imageSize()`, `->alignCenter()`, `->tooltip()` |
-| `UnorderedList` | a bullet list of strings or `Text` items | `->size(TextSize::…)` |
+| Prime | Renders |
+| ----- | ------- |
+| `Text` | string / HTML string / inline Markdown, with color, badge, size, weight, tooltip, JS content |
+| `Icon` | `Heroicon` or icon string |
+| `Image` | image by URL |
+| `UnorderedList` | bullet list of strings or `Text` items |
 
 ```php
-use Filament\Schemas\Components\{Text, Icon, Image, UnorderedList};
-use Filament\Support\Enums\{TextSize, FontWeight};
+use Filament\Schemas\Components\{Text, Icon, UnorderedList};
+use Filament\Support\Enums\FontWeight;
 use Filament\Support\Icons\Heroicon;
-use Illuminate\Support\HtmlString;
 
 Section::make('Permissions')->schema([
     Text::make('Modifying these permissions may expose sensitive data.')
         ->color('warning')
         ->weight(FontWeight::Bold),
 
-    Text::make(new HtmlString('Read the <a href="/docs" class="underline">policy guide</a> first.')),
-
     UnorderedList::make([
         'Admins can edit every record.',
         'Editors can edit their own.',
         'Viewers are read-only.',
     ]),
-
-    Image::make(url: asset('images/permissions-matrix.png'), alt: 'Permission matrix')
-        ->imageWidth('20rem'),
 
     Icon::make(Heroicon::ShieldCheck)->color('success')->tooltip('Audited'),
 ]),
@@ -625,13 +571,7 @@ final class OrderInfolist
 
 ## Custom entries — when no built-in entry fits
 
-Custom entries are the infolist analog of custom columns (`app/Filament/Resources/Tables/CLAUDE.md` → "Custom columns"), and they're very powerful for binding **bespoke DOM/HTML** to a record attribute on a view page — a score gauge, a sparkline, a map, a media player, a styled diff. Agents almost always skip them and hand-build a custom page; **don't**. A custom entry keeps the infolist's label/layout chrome, dark mode, and `Section`/`Grid`/`Split` placement for free.
-
-Walk the same ladder as everywhere else (hub → "Prefer built-in components over custom Blade") and stop at the first rung that works:
-
-1. A **built-in entry** + modifiers — `TextEntry` with `->formatStateUsing()`, `->badge()->color()->icon()`, `->html()` (trusted HTML only), `->listWithLineBreaks()`, `->markdown()`; `IconEntry`, `ImageEntry`, `ColorEntry`. Most "custom" entries are really one of these.
-2. A **prime component** (`Text`/`Icon`/`Image`/`UnorderedList`) or a **`Callout`** — for content *not* bound to a record attribute (see those sections).
-3. Only then, custom Blade — via `ViewEntry` (quick, no class) or a custom entry class (reusable).
+Custom entries are the infolist analog of custom columns (`app/Filament/Resources/Tables/CLAUDE.md` → "Custom columns"). Use them only when built-in entries, primes, and `Callout` cannot render the record-bound value. They keep labels, layout chrome, and dark mode intact.
 
 ### `ViewEntry` — point an entry at a Blade view (no class)
 
@@ -709,20 +649,6 @@ Public getters become "variable functions" in the view (`getMax()` → `$getMax(
 ScoreGaugeEntry::make('health_score')->max(100);
 ```
 
-### Where it lives — resource-scoped vs. global
-
-- **MUST** put an entry **specific to one resource** in that resource's namespace — `app/Filament/Resources/Servers/Schemas/Components/ScoreGaugeEntry.php`, the same `Schemas/Components/` directory the `make()`-returning extraction classes use.
-- **MAY** put a **generic, model-agnostic** entry (a reusable `ScoreGaugeEntry`, `SparklineEntry`) in the global `app/Filament/Infolists/Components/` namespace — the path `make:filament-infolist-entry` scaffolds by default. Global is fine here *because* the entry is model-agnostic; resource-specific ones are not.
-- Keep the Blade view under `resources/views/filament/infolists/components/`; when resource-scoped, namespace the file (`servers/score-gauge-entry.blade.php`) so it can't collide with a global one.
-
-### Custom entry vs. extraction wrapper vs. prime — don't confuse them
-
-- **Extraction wrapper** (`Schemas/Components/`, `static make(): TextEntry`) **wraps** a built-in and returns it — no view, no subclassing. The "**MUST NOT** extend `TextEntry`" rule (see "Per-component extraction") is about the *concrete* entries.
-- **Custom entry class** legitimately **extends** the *abstract base* `Filament\Infolists\Components\Entry` and declares a `$view` — that's Filament's sanctioned extension point, not a violation of that rule.
-- **Prime** (`Text`/`Icon`/…) renders content *not* tied to a record attribute; a custom **entry** renders a labeled record field. Reach for a `ViewEntry`/custom entry when the value comes from `$record`; a prime for a standalone note.
-- **MUST** keep the Blade dumb — compute in `->state(fn ($record) => ...)`, never query inside the view — and dark-mode-aware (Filament/Tailwind classes, `dark:` variants). An unthemed one-off entry is the rot the hub's Blade ladder warns against.
-
-## Additional notes
-
-- See "Callout" above for the inline info/warning component.
-- Form components support Livewire 4's `#[Locked]` on backing properties without extra config.
+- **MUST** put resource-specific entries in `app/Filament/Resources/{Models}/Schemas/Components/`; generic, model-agnostic entries may live in `app/Filament/Infolists/Components/`.
+- **MUST** keep Blade views under `resources/views/filament/infolists/components/` and namespace resource-specific view files to avoid collisions.
+- **MUST** keep the Blade dumb: compute in `->state(fn ($record) => ...)`, never query inside the view, and use Filament/Tailwind classes with `dark:` variants.

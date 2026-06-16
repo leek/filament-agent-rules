@@ -44,3 +44,63 @@ schema, and nearby view pages before designing the display.
 - Dot-notation relationship entries are loaded safely.
 - Long content is limited, wrapped, or placed in a full-width section.
 - View-page tests assert rendering and important displayed state.
+
+## Deep Pattern: Custom Entry Choices
+
+Use the lowest-level escape hatch that fits:
+
+1. Built-in entry plus modifiers: `TextEntry`, `IconEntry`, `ImageEntry`,
+   `ColorEntry`, `->badge()->color()->icon()`, `->formatStateUsing()`,
+   trusted `->html()`, `->markdown()`.
+2. Prime component or `Callout` when the content is not bound to a record
+   attribute.
+3. `ViewEntry` for one-off bespoke record-bound markup.
+4. A custom entry class when reused or configurable.
+
+```php
+ViewEntry::make('health_score')
+    ->view('filament.infolists.components.score-gauge')
+    ->viewData(['max' => 100])
+    ->columnSpanFull();
+```
+
+For a reusable custom entry, extend the abstract `Entry`, declare `$view`, and
+expose fluent config through getters. Public getters are available in the view
+as variable functions (`getMax()` becomes `$getMax()`):
+
+```php
+final class ScoreGaugeEntry extends Entry
+{
+    protected string $view = 'filament.infolists.components.score-gauge-entry';
+
+    protected int | Closure $max = 100;
+
+    public function max(int | Closure $max): static
+    {
+        $this->max = $max;
+
+        return $this;
+    }
+
+    public function getMax(): int
+    {
+        return $this->evaluate($this->max);
+    }
+}
+```
+
+Wrap custom entry Blade in the entry wrapper so labels, hints, layout, and dark
+mode stay consistent:
+
+```blade
+<x-dynamic-component :component="$getEntryWrapperView()" :entry="$entry">
+    @php($score = (int) $getState())
+    <div class="h-2 rounded-full bg-gray-200 dark:bg-gray-700">
+        <div class="h-2 rounded-full bg-primary-500" style="width: {{ $score / $getMax() * 100 }}%"></div>
+    </div>
+</x-dynamic-component>
+```
+
+Resource-specific entries belong in
+`app/Filament/Resources/{Models}/Schemas/Components/`; generic entries may
+live in `app/Filament/Infolists/Components/`.
