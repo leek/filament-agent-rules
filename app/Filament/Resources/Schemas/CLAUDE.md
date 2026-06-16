@@ -7,7 +7,7 @@ alwaysApply: false
 
 # Schemas (Forms + Infolists)
 
-**Purpose:** declarative component trees for editing (Form) and viewing (Infolist) records. Both share the same `Schema` base class in Filament v4+.
+**Purpose:** declarative component trees for editing (Form) and viewing (Infolist) records. Both share the same `Schema` base class.
 
 > **Read first:** the schema model — one `Filament\Schemas\Schema` container, four component categories (fields / entries / layout / prime), the `->components()` vs nested `->schema()` seam, and infinite child-schema nesting — is foundational and applies everywhere a schema appears (forms, infolists, page `content()`, action modals, wizards). It's documented once in the hub: `app/Filament/CLAUDE.md` → "How schemas work — the component tree". This file builds on it.
 
@@ -186,7 +186,7 @@ Grid::make(12)->schema([
 | --------------- | -------------------------------------------------------- |
 | `TextInput`     | strings, numbers, emails, URLs                           |
 | `Textarea`      | medium-length free text                                  |
-| `RichEditor`    | HTML content (TipTap-backed in v4+)                      |
+| `RichEditor`    | HTML content                                             |
 | `MarkdownEditor`| markdown content                                         |
 | `Select`        | one-of-N; supports `->relationship()`, `->searchable()`, `->preload()` |
 | `CheckboxList` / `Toggle` / `Checkbox` | booleans / multi-select          |
@@ -722,7 +722,7 @@ ScoreGaugeEntry::make('health_score')->max(100);
 - **Prime** (`Text`/`Icon`/…) renders content *not* tied to a record attribute; a custom **entry** renders a labeled record field. Reach for a `ViewEntry`/custom entry when the value comes from `$record`; a prime for a standalone note.
 - **MUST** keep the Blade dumb — compute in `->state(fn ($record) => ...)`, never query inside the view — and dark-mode-aware (Filament/Tailwind classes, `dark:` variants). An unthemed one-off entry is the rot the hub's Blade ladder warns against.
 
-## v5+ notes
+## Additional notes
 
-- See "Callout" above for the inline info/warning component (v5.2+).
-- v5 form components support Livewire 4's `#[Locked]` on backing properties without extra config.
+- See "Callout" above for the inline info/warning component.
+- Form components support Livewire 4's `#[Locked]` on backing properties without extra config.

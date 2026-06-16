@@ -2,7 +2,7 @@
 
 Cross-cutting conventions for the Filament admin layer. Per-class-type rules live in the matching directory's `CLAUDE.md` — read both when editing a file.
 
-Targets **Filament v4 + v5**. v5 (Livewire 4 bump, Jan 2026) renames several public APIs — table action methods, the `Filament\Actions\*` namespace consolidation, action modal `->schema()` over `->form()`, removed `BadgeColumn`, layout components under `Filament\Schemas\Components\*`. Examples below show v5 names; v4 equivalents flagged inline where they differ.
+Targets the current Filament panel builder APIs: extracted resource `Schemas/` and `Tables/` classes, `Filament\Actions\*`, table `recordActions()` / `toolbarActions()`, action modal `schema()`, `TextColumn::badge()`, and layout components under `Filament\Schemas\Components\*`.
 
 All rules below are **MUST** unless tagged **SHOULD** / **PREFER** / **AVOID**.
 
@@ -32,7 +32,7 @@ A project frequently overrides Filament's defaults **globally** via `configureUs
 | Widget                | `app/Filament/Widgets/`                            | `{Name}Widget` / `{Name}Chart` / `{Name}Overview` / `Latest{Models}` (table widgets) |
 | PanelProvider         | `app/Providers/Filament/`                          | `{PanelId}PanelProvider`            |
 
-> The directory wrapping each resource is **plural** (e.g. `Orders/`), the class file inside it is **singular + Resource suffix** (`OrderResource.php`). This is the v4/v5 convention emitted by `php artisan make:filament-resource`. The pre-v4 flat layout (`app/Filament/Resources/OrderResource.php` + `OrderResource/` sibling directory) no longer applies.
+> The directory wrapping each resource is **plural** (e.g. `Orders/`), the class file inside it is **singular + Resource suffix** (`OrderResource.php`). This is the layout emitted by `php artisan make:filament-resource`; the older flat layout (`app/Filament/Resources/OrderResource.php` + `OrderResource/` sibling directory) no longer applies.
 
 ## Discovery
 
@@ -90,7 +90,7 @@ $schema->components([                      // top-level Schema → ->components(
 ```
 
 - **MUST** mind the API seam: the top-level **`Schema`** takes **`->components([...])`**; a **layout component** nests its children via **`->schema([...])`**. (A few — `Split`, `Stack`, `Group`, `Wizard` — take their children as a constructor array instead, since their first argument isn't a label.) Calling `->components()` on a `Section` or `->schema()` on the top-level schema is a common mistake.
-- **MUST** choose a component's namespace by category, not by guess: a field is `Filament\Forms\Components\TextInput`, an entry is `Filament\Infolists\Components\TextEntry`, but the `Section`/`Grid`/`Tabs` wrapping either is `Filament\Schemas\Components\*`. The v4 `Filament\Forms\Components\{Section,Grid}` location no longer applies — see "v5+ notes".
+- **MUST** choose a component's namespace by category, not by guess: a field is `Filament\Forms\Components\TextInput`, an entry is `Filament\Infolists\Components\TextEntry`, but the `Section`/`Grid`/`Tabs` wrapping either is `Filament\Schemas\Components\*`.
 - **PREFER** expressing any "custom layout" as nested layout + prime components in a schema before reaching for Blade — this component tree is the structural backing for the "Prefer built-in components over custom Blade" ladder below.
 
 ## Prefer built-in components over custom Blade
@@ -333,7 +333,7 @@ Notification::make()->title('Maintenance tonight')->sendToDatabase($admins);
 
 - **MUST** wrap fallible actions in try/catch and emit a `danger` notification — uncaught exceptions bubble to Livewire and render as a generic 500.
 
-## v5+ notes
+## Runtime notes
 
-- Filament v5 requires **Tailwind v4** for custom themes. Default theme works unchanged.
-- v5 uses **Livewire v4** internally. Component patterns from v4 still work, but Livewire 4 attributes (`#[Locked]`, `#[Computed]`, etc.) are now available inside Filament pages/widgets.
+- Custom themes require the Tailwind version supported by the installed Filament release. Default themes work without a custom build.
+- Current Filament releases use Livewire 4 internally, so Livewire 4 attributes (`#[Locked]`, `#[Computed]`, etc.) are available inside Filament pages/widgets.

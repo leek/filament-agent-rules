@@ -23,7 +23,7 @@ php artisan make:filament-resource Order --view --soft-deletes
 
 `--generate` introspects the model's fillable + casts and scaffolds form/table columns. `--view` adds a ViewRecord page; `--soft-deletes` wires the trash filter and restore/force-delete actions.
 
-## Class shape (v4+)
+## Class shape
 
 ```php
 final class OrderResource extends Resource

@@ -2,7 +2,7 @@
 
 Directory-scoped agent rules for Filament projects. Each `CLAUDE.md` lives next to the code it governs and mirrors the [filamentphp/filament](https://github.com/filamentphp/filament) panel skeleton — agents pick up the rules for whatever file you're editing.
 
-Targets **Filament v4 and v5**. v5 (released Jan 2026) bumps to Livewire v4 and ships a handful of API renames — most notably `Tables\Actions\*` collapsing into `Filament\Actions\*`, table method renames (`actions` → `recordActions`, `bulkActions` → `toolbarActions`), the removal of `BadgeColumn` (use `TextColumn::badge()`), and action modals moving from `->form()` to `->schema()`. Layout components (`Section`, `Grid`, `Tabs`, `Wizard`) live under `Filament\Schemas\Components\*` in v5 only. Rules show v5 names and flag the v4 form inline.
+Targets the current Filament panel builder APIs: extracted resource `Schemas/` and `Tables/` classes, `Filament\Actions\*`, table `recordActions()` / `toolbarActions()`, action modal `schema()`, `TextColumn::badge()`, and layout components under `Filament\Schemas\Components\*`.
 
 ## Install
 
@@ -53,6 +53,24 @@ app/Providers/Filament/AGENTS.md
 ```
 
 Each agent picks up the rules colocated with the file it's editing — no central rules file, no manual wiring. Subdirectory rules ship as separate files in their own subdirectories, not concatenated into the root.
+
+## Optional skills
+
+This repo also ships optional task-scoped skills in `.agents/skills/`. They are a workflow layer for agents that support `SKILL.md` folders. Each skill is also exposed as an individual symlink under `.claude/skills/` for Claude-style skill discovery.
+
+| Skill | Use for |
+| ----- | ------- |
+| `filament-docs` | Finding the right local rule files and official docs |
+| `filament-resource` | Creating or reviewing complete resources |
+| `filament-forms` | Building form schemas and field layouts |
+| `filament-infolists` | Building read-only record schemas |
+| `filament-tables` | Building tables, columns, filters, and table actions |
+| `filament-actions` | Building page, table, modal, bulk, import, and export actions |
+| `filament-dashboard` | Building dashboard/custom panel pages from widgets and schemas |
+| `filament-widgets` | Building stats, chart, table, and custom widgets |
+| `filament-testing` | Writing Pest + Livewire coverage for Filament surfaces |
+
+The skills intentionally do **not** duplicate the full rule content. They route an agent from a task intent ("build a Filament table") to the canonical directory rules and use relative project paths only — no user-specific home directories.
 
 ### Claude glob-based rules (`.claude/rules/*.md`)
 

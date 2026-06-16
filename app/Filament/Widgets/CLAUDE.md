@@ -243,6 +243,6 @@ public static function canView(): bool
 - **SHOULD** use `$isLazy = true` for any widget that hits the DB; the dashboard renders the skeleton immediately and loads each widget independently.
 - **AVOID** raw SQL in widgets — wrap a query object or trend helper instead.
 
-## v5+ notes
+## Additional notes
 
-- v5.2+ supports **deferred filters** on chart widgets — filter UI doesn't auto-fire until the user clicks Apply, which is the right default for slow aggregates.
+- Deferred filters on chart widgets keep slow aggregate filters from auto-firing until the user clicks Apply.

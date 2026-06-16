@@ -137,7 +137,7 @@ $table
 | `CheckboxColumn` | inline edit a boolean checkbox                          |
 | `ViewColumn`   | arbitrary Blade markup when no built-in column fits — see "Custom columns" |
 
-- v5 **removed `BadgeColumn`**. Use `TextColumn::make(...)->badge()->color(fn ($state) => ...)` instead.
+- **MUST NOT** use `BadgeColumn`; use `TextColumn::make(...)->badge()->color(fn ($state) => ...)` instead.
 
 - **MUST** authorize inline-editable columns (`ToggleColumn`, `SelectColumn`, etc.) — Filament does NOT auto-check the policy's `update` ability.
 
@@ -308,7 +308,7 @@ Filter::make('created_at')
 ])
 ```
 
-> v5 renamed `->actions(...)` to `->recordActions(...)`. The v4 name no longer exists.
+Use `->recordActions(...)` for per-row actions.
 
 - **MUST** call `->requiresConfirmation()` on any destructive action.
 - **MUST** use `->visible(...)` / `->hidden(...)` to hide actions the policy denies — keep UI honest.
@@ -323,7 +323,7 @@ Table-scoped operations (Create, Import, Export, Attach) belong here, not on the
     CreateAction::make(),
     Action::make('import')
         ->icon('heroicon-o-arrow-up-tray')
-        ->form([FileUpload::make('file')->acceptedFileTypes(['text/csv'])->required()])
+        ->schema([FileUpload::make('file')->acceptedFileTypes(['text/csv'])->required()])
         ->action(fn (array $data) => app(ImportOrdersAction::class)->run($data['file'])),
 ])
 ```
@@ -362,8 +362,8 @@ ImageColumn::make('logo')->defaultImageUrl(asset('placeholder.svg')); // fallbac
 ])
 ```
 
-- v5 renamed `->bulkActions(...)` to `->toolbarActions(...)`. Use `->groupedBulkActions([...])` as a shorthand when wrapping in a single `BulkActionGroup`.
-- **MUST** authorize bulk actions explicitly — policies do not run automatically. v5 ships `->authorizeIndividualRecords('ability')` which runs the policy check per record and silently drops those the user can't touch.
+- Use `->toolbarActions(...)` for toolbar and bulk actions. Use `->groupedBulkActions([...])` as a shorthand when wrapping in a single `BulkActionGroup`.
+- **MUST** authorize bulk actions explicitly — policies do not run automatically. Use `->authorizeIndividualRecords('ability')` when each selected record needs an individual policy check.
 - **MUST** chunk bulk operations for >1k rows; do not iterate the full `$records` collection in memory.
 
 ## Polling
@@ -440,7 +440,7 @@ public static function configure(Table $table): Table
 - **MUST** put the fixed-size element (avatar/thumbnail) on `->grow(false)` and the flexible content on `->grow()` inside a `Split`, or the image stretches to fill.
 - **SHOULD** wrap the card body in `Panel::make([...])` when you want a visible card surface (border/background) and optional `->collapsible()` — a bare `Stack` has no chrome.
 - **SHOULD** keep `->searchable()` / `->sortable()` on the columns and lift filters above the grid with `FiltersLayout::AboveContent` (see "Filters") — a card grid with no visible filter bar is hard to scan.
-- This is distinct from `->stackedAt('md')` (see "v5+ notes"), which renders an ordinary **row** table as cards *only below* a breakpoint. `contentGrid()` is a card grid at every breakpoint.
+- This is distinct from `->stackedAt('md')` (see "Additional notes"), which renders an ordinary **row** table as cards *only below* a breakpoint. `contentGrid()` is a card grid at every breakpoint.
 
 ### Don't hack a button into a column
 
@@ -470,11 +470,11 @@ Filament ships a generic empty state (a faded icon + "No records"), but it reads
 - **PREFER** distinguishing "never had any" from "filtered to nothing": when the table is filtered, an `emptyStateHeading` like "No orders match these filters" with a description nudging the admin to clear filters beats the generic create prompt. Branch with a closure reading the active filters/`$livewire` if the distinction matters.
 - This rule applies equally to **relation manager** tables and **table widgets** — same `emptyState*` methods, same bar. Use `->emptyStateActions([])` to suppress the default create button on read-only relations.
 
-## v5+ notes
+## Additional notes
 
-- **Stacked rows** (v5.2+) — render table rows as cards on mobile:
+- **Stacked rows** — render table rows as cards on mobile:
 
   ```php
   $table->stackedAt('md')
   ```
-- **Deferred filter** support on chart widgets (v5.2+).
+- **Deferred filter** support on chart widgets.

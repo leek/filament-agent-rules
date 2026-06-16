@@ -52,7 +52,7 @@ Action::make('approve')
 - **MUST** delegate work via `->action(fn ($record) => app(SomeAction::class)->run($record))` — never write the business logic inline. Filament Actions are presentational glue.
 - **MUST** use `->visible(...)` / `->hidden(...)` (or `->authorize('ability', $record)`) to hide actions the policy denies. Showing-but-failing creates a confused admin.
 - **SHOULD** pair every long-running action with a `Notification` in `->after(...)` so the admin gets explicit success/failure feedback.
-- **AVOID** chaining `->action()` AND `->form()` AND `->after()` with heavy logic — extract to a dedicated class once you cross ~15 lines.
+- **AVOID** chaining `->action()` AND `->schema()` AND `->after()` with heavy logic — extract to a dedicated class once you cross ~15 lines.
 
 ## Authorization
 
@@ -74,7 +74,7 @@ When the action needs input:
 
 ```php
 Action::make('reject')
-    ->form([
+    ->schema([
         Textarea::make('reason')->required()->minLength(10),
     ])
     ->action(function (Order $record, array $data): void {
@@ -82,7 +82,7 @@ Action::make('reject')
     });
 ```
 
-- **MUST** validate via the `->form([...])` definition rather than re-validating inside `->action(...)`. Filament rejects the modal submit on validation failure.
+- **MUST** validate via the `->schema([...])` definition rather than re-validating inside `->action(...)`. Filament rejects the modal submit on validation failure.
 
 ## Bulk actions
 
@@ -228,7 +228,7 @@ Action::make('export')
 
 ## Wizard (multi-step) action
 
-For long input flows, use `->steps([...])` instead of a single `->form(...)`:
+For long input flows, use `->steps([...])` instead of a single `->schema(...)`:
 
 ```php
 Action::make('createOrder')
@@ -295,14 +295,14 @@ Pair a destructive action with an undo button via `Notification::actions`:
 
 - **MUST** keep the undo window honest — only offer undo when the underlying mutation is genuinely reversible. A fake undo button is worse than no undo.
 
-## Header actions vs row actions vs page actions (v5 surface)
+## Header actions vs row actions vs page actions
 
 | Surface | Where | Use for |
 | ------- | ----- | ------- |
 | `getHeaderActions()` on List page | top of the table | global ops (Create, Import, Export) |
 | `->headerActions([...])` on the table | table header strip | table-scoped non-bulk ops (Create on a relation manager, refresh) |
-| `->recordActions([...])` on the table *(v5; v4 was `->actions()`)* | per row | per-record ops (View, Edit, Approve) |
-| `->toolbarActions([...])` on the table *(v5; v4 was `->bulkActions()`)* | toolbar / bulk strip | bulk operations, usually wrapped in `BulkActionGroup` |
+| `->recordActions([...])` on the table | per row | per-record ops (View, Edit, Approve) |
+| `->toolbarActions([...])` on the table | toolbar / bulk strip | bulk operations, usually wrapped in `BulkActionGroup` |
 | `->groupedBulkActions([...])` | toolbar | shorthand when every bulk action fits one group |
 | `getHeaderActions()` on View/Edit page | top of the page | per-record ops outside the table context |
 
@@ -317,8 +317,8 @@ EditAction::make()
     ->action(function (array $data, Order $record) { /* ... */ });
 ```
 
-- v5 actions configure their modal via `->schema([...])`. The v4-style `->form([...])` no longer works on Action / BulkAction / EditAction / etc.
-- The submitted state arrives in the callback as `$data` (same as v4).
+- Actions configure modal input via `->schema([...])`.
+- The submitted state arrives in the callback as `$data`.
 
 ## Imports — `Filament\Actions\*`
 
@@ -339,7 +339,7 @@ use Filament\Actions\RestoreBulkAction;
 use Filament\Actions\ViewAction;
 ```
 
-- v5 unified every action class under `Filament\Actions\*`. The v4-era `Filament\Tables\Actions\*` and `Filament\Forms\Actions\*` namespaces **do not exist** — referencing them throws a fatal class-not-found.
+- Use `Filament\Actions\*` for action classes. Do not import table/form scoped action namespaces for current Filament action classes.
 
 ## Notifications inside actions
 
@@ -361,9 +361,9 @@ Or for fully custom:
 });
 ```
 
-## Import / Export actions (v5)
+## Import / Export actions
 
-Filament v5 ships first-class import/export plumbing — don't roll your own Maatwebsite/Excel pipeline unless you already depend on it.
+Filament ships first-class import/export plumbing — don't roll your own Maatwebsite/Excel pipeline unless you already depend on it.
 
 ```bash
 php artisan make:filament-exporter OrderExporter --model=Order
@@ -411,6 +411,6 @@ Wire into the table:
 - **MUST** put `resolveRecord()` logic in the Importer, not in `beforeFill` — Filament uses it to decide insert-vs-update per row.
 - **AVOID** wide CSV imports (>30 columns); split into multiple importers per concern (order header vs items vs payments).
 
-## v5+ notes
+## Additional notes
 
-- **Stacked action modals** (v5.2+) — multiple modals can stack, useful for confirm-then-form-then-confirm flows.
+- **Stacked action modals** — multiple modals can stack, useful for confirm-then-form-then-confirm flows.

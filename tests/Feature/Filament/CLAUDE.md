@@ -2,7 +2,7 @@
 
 **Purpose:** Pest + Livewire feature tests for Filament Resources, Pages, Widgets, and Relation Managers.
 
-Targets **Filament v4 + v5**. v5 has no test-API breaks; Pest + `livewire()` helper work identically.
+Use Pest + Livewire feature tests for the current Filament panel builder APIs.
 
 ## Where they live
 
@@ -334,7 +334,7 @@ For every Resource, **MUST** cover:
 - **PREFER** asserting on DB state (`assertDatabaseHas`, `expect($record->refresh()->...)`) over Livewire `assertSet(...)`.
 - **MUST** test the form's `->live()` dependent fields by `->set('data.parent_id', $id)` then `->assertSet('data.child_field', ...)` — these break silently when relationships change.
 
-## v5+ notes
+## Additional notes
 
-- Livewire v4 inside Filament v5 changes property access from `set('foo')` to `set('foo')` (unchanged), but `assertSet` on hydrated form state now uses `assertFormSet([...])` — already shown above.
-- v5.2+ deferred filters: tests **MUST** call `->filterTable(...)` then `->call('applyTableFilters')` before asserting, otherwise the filter hasn't applied yet.
+- For hydrated form state, prefer `assertFormSet([...])` — already shown above.
+- Deferred filters: tests **MUST** call `->filterTable(...)` then `->call('applyTableFilters')` before asserting, otherwise the filter hasn't applied yet.

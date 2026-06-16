@@ -348,7 +348,7 @@ php artisan make:filament-theme admin
 ->viteTheme('resources/css/filament/admin/theme.css')
 ```
 
-> v5+ requires **Tailwind v4** for custom themes. Default theme works on either.
+> Custom themes require the Tailwind version supported by the installed Filament release. Default themes work without a custom build.
 
 ## Plugins
 
@@ -366,7 +366,7 @@ php artisan make:filament-theme admin
 
 ## Login screen layout
 
-Filament v4+ uses a centered split layout by default. Override via the PanelProvider:
+Filament uses a centered split layout by default. Override via the PanelProvider:
 
 ```php
 ->login(\App\Filament\Pages\Auth\Login::class)
@@ -386,7 +386,7 @@ Insert custom Blade at well-defined slots:
 
 Useful slots: `BODY_START`, `BODY_END`, `HEAD_END`, `TOPBAR_END`, `SIDEBAR_NAV_START`, `SIDEBAR_NAV_END`, `USER_MENU_BEFORE`, `USER_MENU_AFTER`, `AUTH_LOGIN_FORM_AFTER`.
 
-## Panel-level safety + UX options (v5)
+## Panel-level safety + UX options
 
 ```php
 ->spa()                            // single-page-app navigation; preserves Livewire state across links
@@ -409,16 +409,7 @@ php artisan filament:optimize
 - **MUST NOT** run `filament:optimize` in local dev — newly added resources/widgets won't be discovered until the cache is cleared.
 - Pair with `php artisan filament:clear-cached-components` in a `post-update-cmd` Composer hook so devs don't get stuck after pulling new resources.
 
-## v5+ notes
+## Runtime notes
 
-- v5 uses **Livewire v4** internally. Existing Filament classes work unchanged; Livewire 4 attributes (`#[Locked]`, `#[Computed]`, `#[On]`, etc.) become available inside pages/widgets.
-- v5 custom themes **require Tailwind v4**. Upgrade your `tailwind.config.js` before bumping to v5.
-- v5 ships an upgrade script (`vendor/bin/filament-v5`) — run it before manually editing anything.
-- v5 **renames** common APIs. See `app/Filament/CLAUDE.md` for the consolidated import map; key deltas:
-  - All action classes import from `Filament\Actions\*` (not `Filament\Tables\Actions\*` or `Filament\Forms\Actions\*`).
-  - Layout components (`Section`, `Grid`, `Tabs`, `Wizard`) live under `Filament\Schemas\Components\*`.
-  - `BadgeColumn` is removed — use `TextColumn::make(...)->badge()`.
-  - Action modal forms use `->schema([...])`, not `->form([...])`.
-  - Tables use `->recordActions(...)` / `->toolbarActions(...)` instead of `->actions(...)` / `->bulkActions(...)`.
-  - Icons accept the `Heroicon` enum (`Filament\Support\Icons\Heroicon::PencilSquare`) or the legacy string form (`'heroicon-o-pencil-square'`).
-  - The `Operation` enum (`Filament\Support\Enums\Operation::Create`) replaces string comparisons like `$operation === 'create'`.
+- Current Filament releases use Livewire 4 internally, so Livewire 4 attributes (`#[Locked]`, `#[Computed]`, `#[On]`, etc.) are available inside pages/widgets.
+- Custom themes require the Tailwind version supported by the installed Filament release. Confirm the project's frontend build before changing theme configuration.
