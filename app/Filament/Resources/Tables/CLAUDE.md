@@ -396,6 +396,7 @@ public static function configure(Table $table): Table
 - This is distinct from `->stackedAt('md')`, which renders an ordinary **row** table as cards only below a breakpoint. `contentGrid()` is a card grid at every breakpoint.
 
 - **MUST NOT** hack a card button into `TextColumn->default()` with raw Blade/`HtmlString`. Use `->recordUrl(...)`, a real `Action` in `->recordActions([...])`, or `ViewColumn` for genuinely bespoke markup.
+- **MUST NOT** render each card as a bare `Filament\Tables\Columns\Layout\View` wrapping one blade — a `Layout\View` is not a bindable column, so the global **search box and sort menu disappear**. Build the card from real columns inside `Split`/`Stack` (keep `->searchable()`/`->sortable()` on them), or, for a single fully-custom card body, a custom column that `extends Filament\Tables\Columns\Column` with a `$view` — it renders your blade **and** stays a real column, so search/sort/filters keep working.
 
 ## Empty state
 

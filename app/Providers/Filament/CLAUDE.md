@@ -315,6 +315,7 @@ php artisan make:filament-theme admin
 
 - **MUST** include the standard middleware stack shown above. Removing `AuthenticateSession` or `VerifyCsrfToken` breaks the panel in subtle ways.
 - **SHOULD** add custom middleware via `->middleware([...], isPersistent: true)` rather than wedging it into the default group.
+- **MUST** register any middleware that establishes **auth / permission / tenant context** (e.g. setting the active team for `spatie/laravel-permission`, resolving the current tenant) as **persistent** — `->middleware([...], isPersistent: true)`, `->tenantMiddleware([...], isPersistent: true)`, or `->persistentMiddleware([...])`. Panel `middleware()` / `authMiddleware()` run **only on full-page loads**; Livewire's `/livewire/update` routes bypass them. A non-persistent context middleware therefore leaves the context unset on every action click, so policies resolve empty and Filament **silently** drops the now-unauthorized action — the classic symptom is a button that renders on page load then vanishes the instant it's clicked, with nothing logged.
 
 ## Login screen layout
 

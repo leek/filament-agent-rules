@@ -53,6 +53,7 @@ Action::make('approve')
 - **MUST** use `->visible(...)` / `->hidden(...)` (or `->authorize('ability', $record)`) to hide actions the policy denies. Showing-but-failing creates a confused admin.
 - **SHOULD** pair every long-running action with a `Notification` in `->after(...)` so the admin gets explicit success/failure feedback.
 - **AVOID** chaining `->action()` AND `->schema()` AND `->after()` with heavy logic — extract to a dedicated class once you cross ~15 lines.
+- **SHOULD** write every action/button `->label(...)` in **Title Case** — capitalize each major word ("Request Documents", "Mark Verified", "Convert to Client"); lowercase only interior articles / short conjunctions / short prepositions (a, an, the, and, or, but, of, to, in, for). Applies to row, header, and bulk actions and any clickable label.
 
 ## Authorization
 
