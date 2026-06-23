@@ -34,6 +34,8 @@ php artisan make:filament-relation-manager OrderResource items Item
 # arg 3: related-model title attribute
 ```
 
+- **`--no-interaction` does NOT suppress the related-resource prompt.** `make:filament-relation-manager … --no-interaction` still asks "Which related resource?" and dies with `Laravel\Prompts\Exceptions\NonInteractiveValidationException: … Required` — the three positional args are not enough. Either run it interactively, pass the related-resource option the prompt expects, or hand-create the manager by copying a sibling `*RelationManager` and editing `$relationship` / `$recordTitleAttribute`.
+
 ## Class shape
 
 ```php
