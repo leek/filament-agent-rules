@@ -137,6 +137,13 @@ Grid::make(['default' => 1, 'md' => 2, 'xl' => 12])
     ]);
 ```
 
+### Modals & slide-overs are below `lg` — integer grids silently collapse there
+
+A modal/slide-over is **narrower than the `lg` breakpoint** (`->modalWidth('3xl')` ≈ 768px; `lg` = 1024px). Because integer `Grid::make(2)` compiles to `['default' => 1, 'lg' => 2]`, **a 2-column grid inside any modal renders as one stacked column** — the multi-column layout never engages at modal widths. This is the #1 cause of "the modal is just a flat list of fields."
+
+- **MUST** use a responsive array (`Grid::make(['default' => 1, 'sm' => 2])`) for any grid rendered inside an action modal, slide-over, or other sub-`lg` surface. `sm` (640px) fits inside a `3xl` modal; integer `Grid::make(2)` does not.
+- **PREFER** this for *every* infolist/form schema you build for an Action's `->schema(...)` or `->infolist(...)` — assume modal width unless the schema is on a full-width resource page.
+
 ### Sections, and side-by-side sections
 
 A form should read as a few labeled groups, not one long list. Put fields directly in a `Section` with its own `->columns(12)`; reach for an outer `Grid::make(12)` only when you want **sections side by side**:

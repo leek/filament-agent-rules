@@ -1,6 +1,6 @@
 # Frontend Build
 
-**Always run `npm run build` after editing any CSS or JS file.** No exceptions.
+**Always run `npm run build && php artisan filament:assets` after editing any CSS or JS file.** No exceptions.
 
 # CSS Theme
 

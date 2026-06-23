@@ -147,7 +147,7 @@ it('updates an order', function () {
 ```
 
 - **MUST** assert `assertHasNoFormErrors()` on every successful save — without it, validation failures hide as silent no-ops.
-- **MUST** test `unique` rules with `ignoreRecord: true` on Edit pages — easy regression when developers forget the flag.
+- **MUST** verify edit-page `unique` validation with a test that saves the current record unchanged and rejects a duplicate from another record. Only add `ignoreRecord: true` in the schema when the field is not already model-bound in a way Filament can infer.
 
 ## Action assertions
 
