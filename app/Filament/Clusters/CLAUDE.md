@@ -2,6 +2,8 @@
 
 **Purpose:** group multiple related Resources (and optionally Pages) under one sidebar item with its own sub-navigation. Use when a panel has 10+ resources and the sidebar starts to crowd.
 
+> **Filament's domain axis.** A cluster is the Filament equivalent of the **domain sub-namespacing** in `laravel-agent-rules` (`app/CLAUDE.md`): on top of the per-model resource layout it adds a business-domain grouping (`Commerce/`, `Billing/`), and the child resources physically move into `Clusters/{Domain}/Resources/...`. **MUST** reuse the **same domain name** the rest of the app already uses — `Billing/` in Models/Jobs/Policies → a `Billing` cluster here.
+
 ## Where they live
 
 ```

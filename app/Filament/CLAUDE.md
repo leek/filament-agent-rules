@@ -231,6 +231,14 @@ Custom columns, custom entries, `ViewColumn`/`ViewEntry`, and any `->view(...)` 
 - **Multi-tenancy:** Filament scopes **resource** queries to the tenant automatically; **custom queries, actions, pages, and widgets MUST scope to `Filament::getTenant()` themselves** — one forgotten scope leaks another tenant's data. See `app/Providers/Filament/CLAUDE.md` → "Tenancy".
 - **SHOULD** verify, with tests, that authorization holds at **every** entry point — resource pages, custom pages, actions, bulk actions, inline columns. See `tests/Feature/Filament/CLAUDE.md`.
 
+## Labels & localization
+
+Filament labels — component `->label()`, modal headings, `Notification` titles, enum `getLabel()` — are written **inline** throughout these rules. This is the **one sanctioned exception** to the app-wide "never inline user-facing strings" rule in `laravel-agent-rules` (`app/CLAUDE.md` → "Constants & strings").
+
+- **SHOULD** keep labels inline for an English-only internal panel — wrapping every `->label()` in `__()` buys nothing there.
+- **MUST**, when the panel is localized, pass `__('...')` (or call `->translateLabel()`) and lift it to a **global** default rather than sprinkling `__()` at every call site — e.g. `Field::configureUsing(fn (Field $field) => $field->translateLabel())`. See `app/Providers/Filament/CLAUDE.md` → "Global defaults via `configureUsing`".
+- The **Title Case** convention (`app/Filament/Actions/CLAUDE.md`) governs the *rendered* text — apply it to the translation value when localized.
+
 ## Notifications (cross-cutting)
 
 `Filament\Notifications\Notification` is the canonical feedback surface for Resource pages, Actions, Widgets, custom Pages, and queued Jobs.
