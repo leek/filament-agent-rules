@@ -170,7 +170,9 @@ public static function getGlobalSearchResultDetails(Model $record): array
 ```php
 public static function getNavigationBadge(): ?string
 {
-    return (string) Order::query()->where('status', 'pending')->count();
+    return Cache::remember('orders:navigation_badge_pending_count', now()->addMinute(), function (): string {
+        return (string) Order::query()->where('status', 'pending')->count();
+    });
 }
 
 public static function getNavigationBadgeColor(): ?string
@@ -179,7 +181,7 @@ public static function getNavigationBadgeColor(): ?string
 }
 ```
 
-- **MUST** cache navigation badge queries when they hit a large table — they run on every panel page load. Use `Cache::remember()` with a short TTL or compute via a daily-refreshed counter column.
+- **MUST** cache navigation badge queries when they hit a large table — they run on every panel page load for every navigation item. Use `Cache::remember()` with a short TTL, a shared cache-key constant, or a precomputed counter column; invalidate from the model observer when the underlying count changes.
 
 ## Authorization
 

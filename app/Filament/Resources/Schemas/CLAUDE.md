@@ -324,6 +324,26 @@ $schema->components([
 - **MUST** keep fragments stateless — no `$this`, no constructor args that vary by record. If the fragment needs record context, accept it as a parameter (`get(?Model $record = null)`).
 - **PREFER** this over a base class that defines `getSharedFields()` — composition reads better than inheritance for schemas.
 
+## Dynamic schemas from config
+
+For repeated config-driven groups (locales, currencies, channels, feature variants), **PREFER** building the component list from config with `collect(...)->map(...)->all()` instead of copy-pasting one field group per option. Keep the config structure typed and stable, and keep the generated field names predictable.
+
+```php
+Tabs::make('Translations')
+    ->tabs(
+        collect(config('locales.supported'))
+            ->map(fn (array $locale, string $code): Tabs\Tab => Tabs\Tab::make($locale['name'])
+                ->schema([
+                    TextInput::make("title.{$code}")
+                        ->required($code === config('locales.default'))
+                        ->live(onBlur: true),
+                    TextInput::make("slug.{$code}")
+                        ->required($code === config('locales.default')),
+                ]))
+            ->all(),
+    );
+```
+
 ## State callbacks
 
 | Callback                   | Runs when                                                      |
@@ -470,6 +490,8 @@ $schema->components([
 ```
 
 Use on `CreateRecord` pages; on Edit pages, prefer Tabs.
+
+- **SHOULD** call `->persistStepInQueryString('step')` for long create/setup wizards where refresh, browser history, or sharing a direct step link matters. Use stable step keys so bookmarked URLs survive label changes.
 
 ## Prime components — arbitrary content without Blade
 

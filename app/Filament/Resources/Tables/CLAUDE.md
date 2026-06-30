@@ -255,10 +255,15 @@ Filter::make('created_at')
         return $query
             ->when($data['from'], fn ($q, $d) => $q->whereDate('created_at', '>=', $d))
             ->when($data['until'], fn ($q, $d) => $q->whereDate('created_at', '<=', $d));
-    });
+    })
+    ->indicateUsing(fn (array $data): array => [
+        ...(($data['from'] ?? null) ? [Indicator::make('Created from '.$data['from'])->removeField('from')] : []),
+        ...(($data['until'] ?? null) ? [Indicator::make('Created until '.$data['until'])->removeField('until')] : []),
+    ]);
 ```
 
 - **MUST** index columns referenced in filters — they run as part of the index query.
+- **MUST** add `->indicateUsing(...)` to custom filters with form state so admins can see why records disappeared and clear individual fields from the active-filter chips.
 
 ## Row actions
 
@@ -318,6 +323,9 @@ ImageColumn::make('logo')->defaultImageUrl(asset('placeholder.svg')); // fallbac
         BulkAction::make('archive')
             ->requiresConfirmation()
             ->authorizeIndividualRecords('archive')
+            ->schema([
+                Textarea::make('reason')->required(),
+            ])
             ->action(fn (Collection $records) => app(ArchiveOrdersAction::class)->run($records)),
     ]),
 ])
@@ -332,6 +340,7 @@ ImageColumn::make('logo')->defaultImageUrl(asset('placeholder.svg')); // fallbac
 - Use `->toolbarActions(...)` for toolbar and bulk actions. Use `->groupedBulkActions([...])` as a shorthand when wrapping in a single `BulkActionGroup`.
 - **MUST** authorize bulk actions explicitly — policies do not run automatically. Use `->authorizeIndividualRecords('ability')` when each selected record needs an individual policy check.
 - **MUST** chunk bulk operations for >1k rows; do not iterate the full `$records` collection in memory.
+- **PREFER** giving non-trivial bulk actions their own `->schema([...])` when the operation needs input (reason, channel, message, assignee). A bulk action can be a small workflow; validate through the schema, then delegate the selected records and data to an `app/Actions/` class.
 
 ## Polling
 

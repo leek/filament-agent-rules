@@ -59,6 +59,7 @@ final class OrdersOverview extends StatsOverviewWidget
 
 - **MUST** cache stat queries that hit large tables. Stats run on **every** dashboard load.
 - **SHOULD** use `Cache::remember('orders:pending:count', 60, fn () => ...)` for counts on tables >100k rows.
+- **SHOULD** format large stat values with `Number::abbreviate(..., precision: 1)` when raw counts stop being scan-friendly (`7.5B`, `202.7K` beats `7457147561`).
 
 ## Chart widget
 
@@ -89,6 +90,7 @@ final class RevenueChart extends ChartWidget
 
 - **MUST** use `flowframe/laravel-trend` (or equivalent) for time-series aggregations — never loop dates in PHP.
 - **SHOULD** add `protected static ?string $pollingInterval = '60s';` only on charts that need live data. Otherwise `null` to disable polling.
+- **MUST** return a continuous label/data series for chart ranges. If the aggregation helper does not fill date gaps for you, fill missing dates explicitly before returning data so charts do not skip quiet days.
 
 ### Filterable chart widget
 
@@ -224,6 +226,7 @@ protected static ?string $pollingInterval = '30s';   // or null to disable
 ```
 
 - **MUST NOT** poll faster than 10s in production. Each poll re-runs the widget's data fetch across all logged-in admin sessions.
+- **SHOULD** disable polling (`protected static ?string $pollingInterval = null;`) on stats and charts unless the widget genuinely needs live data. Filament's default polling is easy to miss and can create a background request stream from every open dashboard.
 
 ## Authorization
 
