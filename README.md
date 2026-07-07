@@ -117,6 +117,21 @@ Use alongside [leek/laravel-agent-rules](https://github.com/leek/laravel-agent-r
 
 Releases are tagged. Pin with `leek/filament-agent-rules@v0.14.0` if you want reproducible installs.
 
+## More Filament plugins by Leek
+
+**Premium**
+
+- [**Filament UI Plus**](https://filamentphp.com/plugins/leek-ui-plus) — Enhanced UI components: dual sub-navigation, animated sidebar, horizontal-scroll tables, loading bar, and more.
+- [**Filament Workflow Engine**](https://filamentphp.com/plugins/leek-workflow-engine) — Automated workflows with a visual builder, triggers/actions, async execution, and audit logging.
+- [**Filament Decision Tables**](https://filamentphp.com/plugins/leek-decision-tables) — Business rules engine with spreadsheet-style decision tables.
+
+**Free & open source**
+
+- [**Filament Right Click**](https://github.com/leek/filament-right-click) — Right-click context menus for table rows.
+- [**Filament Header Filters**](https://github.com/leek/filament-header-filters) — Inline filters attached to table column headers.
+- [**Filament Subtenant Scope**](https://github.com/leek/filament-subtenant-scope) — Second-level tenancy scoping via a topnav dropdown.
+- [**Filament DiceBear**](https://github.com/leek/filament-dicebear) — DiceBear avatar provider with 31 styles.
+
 ## License
 
 MIT
