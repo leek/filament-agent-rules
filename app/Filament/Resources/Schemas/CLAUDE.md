@@ -1,8 +1,7 @@
 ---
 description: Reusable Form and Infolist schema classes (declarative component trees, state callbacks)
-globs:
+paths:
   - app/Filament/**/Schemas/*.php
-alwaysApply: false
 ---
 
 # Schemas (Forms + Infolists)
@@ -426,6 +425,7 @@ Inside a `*Js` expression: `$get('field')` reads state, `$set('field', value)` m
 - **MUST** fall back to PHP callbacks for database, auth, relationship, enum, or cast logic. `$get()` in JS only sees state already on the page.
 - **MUST NOT** concatenate user input into JS strings; read user values via `$get()` / `$state` instead.
 - **MUST** remember this is JavaScript syntax (`===`, `!==`, `&&`), not PHP.
+- **MUST** commit Livewire property changes with `$wire.set('prop', value)`, never bare `$wire.prop = value`, when the change must trigger a **server re-render**. Bare proxy assignment updates the client-side proxy *optimistically only* — no round-trip, no re-render — so a display-mode / tab / filter toggle set that way silently never re-renders (from Alpine/blade handlers, use `Livewire.find(id).set('prop', value)`). Use bare assignment only for a value you don't need the server to react to.
 
 ## Custom validation messages
 

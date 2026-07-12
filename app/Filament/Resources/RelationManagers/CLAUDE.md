@@ -1,8 +1,7 @@
 ---
 description: Relation managers attached to a parent Resource (HasMany, BelongsToMany, MorphMany)
-globs:
+paths:
   - app/Filament/**/RelationManagers/*.php
-alwaysApply: false
 ---
 
 # Relation Managers

@@ -1,9 +1,8 @@
 ---
 description: Filament providers — PanelProvider bootstrapping (discovery, theme, middleware, plugins, tenancy, auth) and app-wide component defaults via configureUsing in the FilamentServiceProvider
-globs:
+paths:
   - app/Providers/Filament/*.php
   - app/Providers/FilamentServiceProvider.php
-alwaysApply: false
 ---
 
 # Filament Providers — Panels & Global Configuration

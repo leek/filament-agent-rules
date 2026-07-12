@@ -1,8 +1,7 @@
 ---
 description: Dashboard widgets (stats, charts, table widgets, custom Blade widgets)
-globs:
+paths:
   - app/Filament/**/Widgets/*.php
-alwaysApply: false
 ---
 
 # Widgets

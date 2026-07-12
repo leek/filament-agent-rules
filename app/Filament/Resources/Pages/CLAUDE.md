@@ -1,8 +1,7 @@
 ---
 description: Resource page classes (ListRecords / CreateRecord / EditRecord / ViewRecord) and lifecycle hooks
-globs:
+paths:
   - app/Filament/**/Pages/*.php
-alwaysApply: false
 ---
 
 # Resource Pages
