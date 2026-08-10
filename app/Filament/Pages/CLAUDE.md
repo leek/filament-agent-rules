@@ -27,6 +27,11 @@ php artisan make:filament-page ImportProducts --resource=ProductResource --type=
 ## Class shape
 
 ```php
+use Filament\Forms\Components\{TextInput, Toggle};
+use Filament\Notifications\Notification;
+use Filament\Pages\Page;
+use Filament\Schemas\Schema;
+
 final class Settings extends Page
 {
     protected static ?string $navigationIcon = 'heroicon-o-cog-6-tooth';
@@ -42,17 +47,14 @@ final class Settings extends Page
         $this->form->fill(SettingsStore::all());
     }
 
-    protected function getFormSchema(): array
+    public function form(Schema $schema): Schema
     {
-        return [
-            TextInput::make('site_name')->required(),
-            Toggle::make('maintenance_mode'),
-        ];
-    }
-
-    protected function getFormStatePath(): string
-    {
-        return 'data';
+        return $schema
+            ->components([
+                TextInput::make('site_name')->required(),
+                Toggle::make('maintenance_mode'),
+            ])
+            ->statePath('data');
     }
 
     public function save(): void
@@ -81,22 +83,36 @@ final class Settings extends Page
 
 ## Form inside a page
 
-Filament pages can host one or more forms via the `HasForms` trait. Pattern:
+Filament pages host forms as a `Schema` on the page — same `form(Schema $schema): Schema` shape as Resources. Pattern:
 
 ```php
-final class ImportProducts extends Page implements HasForms
+use App\Actions\ImportProductsAction;
+use App\Models\Product;
+use Filament\Forms\Components\{FileUpload, Toggle};
+use Filament\Pages\Page;
+use Filament\Schemas\Schema;
+
+final class ImportProducts extends Page
 {
-    use InteractsWithForms;
+    protected static string $view = 'filament.pages.import-products';
 
     public ?array $data = [];
 
-    public function mount(): void { $this->form->fill(); }
-
-    public function form(Form $form): Form
+    public function mount(): void
     {
-        return $form
-            ->schema([
-                FileUpload::make('file')->required()->acceptedFileTypes(['text/csv']),
+        $this->form->fill();
+    }
+
+    public function form(Schema $schema): Schema
+    {
+        return $schema
+            ->components([
+                FileUpload::make('file')
+                    ->required()
+                    ->acceptedFileTypes(['text/csv', 'text/plain'])
+                    ->maxSize(10240)
+                    ->disk('local')
+                    ->visibility('private'),
                 Toggle::make('dry_run')->default(true),
             ])
             ->statePath('data');
@@ -104,11 +120,14 @@ final class ImportProducts extends Page implements HasForms
 
     public function submit(): void
     {
+        $this->authorize('import', Product::class);
         $data = $this->form->getState();
         app(ImportProductsAction::class)->run($data['file'], dryRun: $data['dry_run']);
     }
 }
 ```
+
+- **MUST** authorize mutation methods (`save`, `submit`, custom actions) even when `canAccess()` already gates the page — page access and “may run this import” are often different abilities.
 
 ## View
 

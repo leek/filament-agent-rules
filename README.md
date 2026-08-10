@@ -72,24 +72,36 @@ This repo also ships optional task-scoped skills in `.agents/skills/`. They are 
 
 The skills intentionally do **not** duplicate the full rule content. They route an agent from a task intent ("build a Filament table") to the canonical directory rules and use relative project paths only — no user-specific home directories.
 
-### Claude glob-based rules (`.claude/rules/*.md`)
+### Path-scoped rules (`.claude/rules/*.md`)
 
-In addition to the per-directory `CLAUDE.md` files, this repo ships a `.claude/rules/` directory that applies the same rules by glob. Filament projects often deviate from the stock layout — domain-grouped resources like `app/Filament/Resources/Shop/Products/Pages/...` or multi-panel layouts like `app/Filament/Admin/Resources/...` won't match a strict per-directory CLAUDE.md, but a glob like `app/Filament/**/Pages/*.php` catches them all.
+In addition to the per-directory `CLAUDE.md` files, this repo ships a `.claude/rules/` directory that applies the same rules by path match. Filament projects often deviate from the stock layout — domain-grouped resources like `app/Filament/Resources/Shop/Products/Pages/...` or multi-panel layouts like `app/Filament/Admin/Resources/...` won't match a strict per-directory CLAUDE.md, but a path pattern like `app/Filament/**/Pages/*.php` catches them all.
 
-Each `.claude/rules/*.md` is a **symlink** to its canonical `CLAUDE.md`, so the two can never drift — edit the per-directory file and both surfaces update. To make this work, the Cursor-style frontmatter lives at the top of the canonical file itself:
+Each `.claude/rules/*.md` is a **symlink** to its canonical `CLAUDE.md`, so the two can never drift — edit the per-directory file and both surfaces update. The path-scoped frontmatter lives at the top of the canonical file itself (Claude Code / agent path matching uses `paths:`):
 
 ```yaml
 ---
 description: Resource page classes (lifecycle hooks)
-globs:
+paths:
   - app/Filament/**/Pages/*.php
-alwaysApply: false
 ---
 ```
 
 Agents that read `CLAUDE.md` / `AGENTS.md` directly see this frontmatter block as inert text and ignore it.
 
-Only the seven resource-scoped rule types have glob rules. The rest (`app/Filament/CLAUDE.md`, `Clusters/`, `Pages/`, `app/Providers/Filament/`, `tests/Feature/Filament/`, `resources/css/filament/`) live at fixed paths that don't vary with domain grouping, so the per-directory `CLAUDE.md` already matches and a glob rule would be redundant.
+**Eight** rule types are path-scoped and symlinked under `.claude/rules/`:
+
+| Symlink | Canonical file |
+| ------- | -------------- |
+| `filament-actions.md` | `app/Filament/Actions/CLAUDE.md` |
+| `filament-resources.md` | `app/Filament/Resources/CLAUDE.md` |
+| `filament-resource-pages.md` | `app/Filament/Resources/Pages/CLAUDE.md` |
+| `filament-relation-managers.md` | `app/Filament/Resources/RelationManagers/CLAUDE.md` |
+| `filament-schemas.md` | `app/Filament/Resources/Schemas/CLAUDE.md` |
+| `filament-tables.md` | `app/Filament/Resources/Tables/CLAUDE.md` |
+| `filament-widgets.md` | `app/Filament/Widgets/CLAUDE.md` |
+| `filament-providers.md` | `app/Providers/Filament/CLAUDE.md` |
+
+The rest (`app/Filament/CLAUDE.md`, `Clusters/`, `Pages/`, `tests/Feature/Filament/`, `resources/css/filament/`) live at fixed paths that don't vary with domain grouping, so the per-directory `CLAUDE.md` already matches and a path rule would be redundant.
 
 ## What you get
 

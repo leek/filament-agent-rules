@@ -294,7 +294,14 @@ Table-scoped operations (Create, Import, Export, Attach) belong here, not on the
     CreateAction::make(),
     Action::make('import')
         ->icon('heroicon-o-arrow-up-tray')
-        ->schema([FileUpload::make('file')->acceptedFileTypes(['text/csv'])->required()])
+        ->schema([
+            FileUpload::make('file')
+                ->required()
+                ->acceptedFileTypes(['text/csv', 'text/plain'])
+                ->maxSize(10240)
+                ->disk('local')
+                ->visibility('private'),
+        ])
         ->action(fn (array $data) => app(ImportOrdersAction::class)->run($data['file'])),
 ])
 ```
@@ -332,7 +339,10 @@ ImageColumn::make('logo')->defaultImageUrl(asset('placeholder.svg')); // fallbac
 // Shorthand when every bulk action is in one group:
 ->groupedBulkActions([
     DeleteBulkAction::make(),
-    BulkAction::make('archive')->action(fn (Collection $records) => /* ... */),
+    BulkAction::make('archive')
+        ->requiresConfirmation()
+        ->authorizeIndividualRecords('archive')
+        ->action(fn (Collection $records) => app(ArchiveOrdersAction::class)->run($records)),
 ])
 ```
 

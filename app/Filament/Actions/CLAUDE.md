@@ -90,6 +90,7 @@ Action::make('reject')
 ```php
 BulkAction::make('archive')
     ->requiresConfirmation()
+    ->authorizeIndividualRecords('archive')
     ->deselectRecordsAfterCompletion()
     ->action(function (Collection $records): void {
         $records->each(fn (Order $order) => app(ArchiveOrderAction::class)->run($order));
@@ -97,7 +98,7 @@ BulkAction::make('archive')
 ```
 
 - **MUST** chunk the iteration for >1k rows. Dispatch a job per chunk instead of looping in the request.
-- **MUST** authorize bulk actions — policies are **not** auto-checked on bulk actions.
+- **MUST** authorize bulk actions — policies are **not** auto-checked on bulk actions. Use `->authorizeIndividualRecords('ability')` when each selected record needs an individual policy check.
 - **SHOULD** call `->deselectRecordsAfterCompletion()` so the table doesn't keep the (now-mutated) rows selected.
 
 ## Reusable action class

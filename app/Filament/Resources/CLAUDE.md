@@ -237,11 +237,14 @@ Hide sensitive fields from non-privileged admins inside the schema, not via a se
 
 ```php
 TextInput::make('internal_notes')
-    ->visible(fn () => auth()->user()->can('view-internal-notes'));
+    ->visible(fn () => auth()->user()?->can('view-internal-notes') ?? false)
+    ->dehydrated(fn () => auth()->user()?->can('view-internal-notes') ?? false);
 
+// Default-hidden in the column toggler for density/UX — not a privilege gate.
+// Gate real secrets with ->visible(...) (or omit the column) instead.
 TextColumn::make('cost_cents')
     ->money()
-    ->toggleable(isToggledHiddenByDefault: ! auth()->user()->isFinance());
+    ->toggleable(isToggledHiddenByDefault: ! auth()->user()?->isFinance());
 ```
 
 - **MUST** also call `->dehydrated(fn () => ...)` on sensitive form fields you hide — otherwise a crafted Livewire request can still set the value.
