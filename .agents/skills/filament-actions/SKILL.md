@@ -50,65 +50,10 @@ slide-over, icon, or confirmation settings locally.
   request.
 - Tests call the action and cover validation/error paths where meaningful.
 
-## Deep Pattern: Reuse Across Surfaces
+## Reuse, modals, and notifications
 
-An extracted `Action` can be reused on page headers, table rows, and relation
-manager headers when its setup does not assume a record exists. Keep bulk
-behavior in a separate `BulkAction` class.
-
-```php
-protected function getHeaderActions(): array
-{
-    return [
-        EmailCustomerAction::make(),
-    ];
-}
-
-$table->recordActions([
-    EmailCustomerAction::make(),
-]);
-
-$table->toolbarActions([
-    BulkActionGroup::make([
-        EmailCustomersBulkAction::make(),
-    ]),
-]);
-```
-
-If behavior varies by surface, branch on `$this->getRecord()` or split the
-action. Do not duplicate the same `visible()`, authorization, modal, and
-notification chains inline across multiple surfaces.
-
-## Deep Pattern: Modal And Notification Details
-
-Prefer modal intent over trigger-button color:
-
-```php
-DeleteAction::make()
-    ->modalIcon(Heroicon::OutlinedTrash)
-    ->modalIconColor('danger');
-
-Action::make('approve')
-    ->modalIcon(Heroicon::OutlinedCheckCircle)
-    ->modalIconColor('success');
-```
-
-For reversible destructive actions, put the undo in the notification action
-only when the mutation is genuinely reversible:
-
-```php
-Notification::make()
-    ->title('Order archived')
-    ->success()
-    ->actions([
-        \Filament\Actions\Action::make('undo')
-            ->color('gray')
-            ->dispatch('restore-order', ['orderId' => $record->getKey()])
-            ->close(),
-    ])
-    ->send();
-```
-
-Read `app/Filament/Actions/CLAUDE.md` → "Notification with follow-up action"
-for the required mounted Livewire listener, scoped record lookup, and policy
-check. The notification cannot execute a serialized PHP callback.
+Read `app/Filament/Actions/CLAUDE.md` → "Reusable across surfaces",
+"Modal icon + color", and "Notification with follow-up action" for the
+canonical examples. Shared actions follow that rule's extraction threshold.
+Notification event receivers must be mounted, resolve scoped records, and
+authorize the requested operation.

@@ -2,7 +2,7 @@
 
 Directory-scoped agent rules for Filament projects. The rule tree mirrors the [filamentphp/filament](https://github.com/filamentphp/filament) panel skeleton. The inherited hub routes agents to class-type rules whose skeleton directories are siblings of actual resource code.
 
-Targets the current Filament panel builder APIs: extracted resource `Schemas/` and `Tables/` classes, `Filament\Actions\*`, table `recordActions()` / `toolbarActions()`, action modal `schema()`, `TextColumn::badge()`, and layout components under `Filament\Schemas\Components\*`.
+Targets Filament **5.9.0 or later in 5.x**, the released baseline used to verify these rules, including the security helpers. Examples use extracted resource `Schemas/` and `Tables/` classes, `Filament\Actions\*`, table `recordActions()` / `toolbarActions()`, action modal `schema()`, `TextColumn::badge()`, and layout components under `Filament\Schemas\Components\*`. Check the target project's installed version before applying guidance; older installations need an upgrade or version-appropriate rules.
 
 ## Install
 
@@ -10,22 +10,30 @@ Use [apply-agent-rules](https://github.com/leek/apply-agent-rules) to drop the r
 
 ```bash
 # Preview what will be written
-npx apply-agent-rules list leek/filament-agent-rules --agents claude
+npx apply-agent-rules list leek/filament-agent-rules --agents claude --exclude 'scripts/**'
 
 # Install into the current project, interactive agent picker
-npx apply-agent-rules apply leek/filament-agent-rules
+npx apply-agent-rules apply leek/filament-agent-rules --exclude 'scripts/**'
 
 # Non-interactive (pick agents explicitly)
-npx apply-agent-rules apply leek/filament-agent-rules --agents claude,codex
+npx apply-agent-rules apply leek/filament-agent-rules --agents claude,codex --exclude 'scripts/**'
 
 # Pin to a release tag
-npx apply-agent-rules apply leek/filament-agent-rules@v0.15.1 --agents claude
+npx apply-agent-rules apply leek/filament-agent-rules@v0.15.1 --agents claude --exclude 'scripts/**'
 
 # Re-pull later, preserving local edits and pruning removed files
 npx apply-agent-rules update
 ```
 
 Supported agents: `claude`, `codex`, `gemini`, `cursor`, `windsurf`, `cline`.
+
+The installer walks the source filesystem, including gitignored files in a local checkout. To install from this maintenance checkout, also exclude the gitignored root meta file:
+
+```bash
+npx apply-agent-rules apply . --agents claude,codex --exclude CLAUDE.md --exclude 'scripts/**'
+```
+
+The root-only `CLAUDE.md` exclusion leaves nested canonical rules intact. The installer already excludes `.github/` maintenance records and workflows.
 
 ## How install works
 
@@ -56,7 +64,19 @@ Directory-aware agents inherit the hub at `app/Filament/`. Specialized skeleton 
 
 ## Optional skills
 
-This repo also ships optional task-scoped skills in `.agents/skills/`. They are a workflow layer for agents that support `SKILL.md` folders. Each skill is also exposed as an individual symlink under `.claude/skills/` for Claude-style skill discovery.
+This repo also ships optional task-scoped skills in `.agents/skills/`. They are a workflow layer for agents that support `SKILL.md` folders. In this source checkout, each skill is exposed as an individual directory symlink under `.claude/skills/`.
+
+The current installer copies `.agents/skills/` but skips directory symlinks, so it does **not** install those Claude discovery links. After installation, create individual links from the target project root (review any existing same-name folders first):
+
+```sh
+mkdir -p .claude/skills
+for skill_dir in .agents/skills/filament-*; do
+    skill_name=${skill_dir##*/}
+    ln -s "../../.agents/skills/$skill_name" ".claude/skills/$skill_name"
+done
+```
+
+Run this step only for missing links; `ln -s` leaves existing destinations alone.
 
 | Skill | Use for |
 | ----- | ------- |

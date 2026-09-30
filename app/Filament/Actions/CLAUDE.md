@@ -34,7 +34,8 @@ Action::make('approve')
     ->label('Approve')
     ->icon('heroicon-o-check')
     ->color('success')
-    ->visible(fn (Order $record) => $record->status === 'pending')
+    ->authorize('approve')
+    ->visible(fn (Order $record) => $record->status === OrderStatus::Pending)
     ->requiresConfirmation()
     ->modalHeading('Approve order?')
     ->modalDescription(fn (Order $record) => "Approve order #{$record->reference}?")
@@ -49,7 +50,7 @@ Action::make('approve')
 - **MUST** call `->requiresConfirmation()` on any destructive or irreversible action.
 - **MUST** set `->modalIcon(...)` + `->modalIconColor(...)` on modal/slide-over actions unless the project already does this globally via `configureUsing`. Use intent colors: `danger`, `success`, `warning`, `primary`.
 - **MUST** delegate work via `->action(fn ($record) => app(SomeAction::class)->run($record))` — never write the business logic inline. Filament Actions are presentational glue.
-- **MUST** use `->visible(...)` / `->hidden(...)` (or `->authorize('ability', $record)`) to hide actions the policy denies. Showing-but-failing creates a confused admin.
+- **MUST** authorize custom actions with `->authorize('ability')` or an authorization callback. Visibility controls presentation; it does not replace an execution-time authorization check. Filament supplies a record-bound action's record to the policy automatically.
 - **SHOULD** pair every long-running action with a `Notification` in `->after(...)` so the admin gets explicit success/failure feedback.
 - **AVOID** chaining `->action()` AND `->schema()` AND `->after()` with heavy logic — extract to a dedicated class once you cross ~15 lines.
 - **SHOULD** write every action/button `->label(...)` in **Title Case** — capitalize each major word ("Request Documents", "Mark Verified", "Convert to Client"); lowercase only interior articles / short conjunctions / short prepositions (a, an, the, and, or, but, of, to, in, for). Applies to row, header, and bulk actions and any clickable label. When the panel is localized, pass `__('...')` instead and apply Title Case to the translation value — see `app/Filament/CLAUDE.md` → "Labels & localization".
@@ -58,11 +59,11 @@ Action::make('approve')
 
 ```php
 Action::make('refund')
-    ->authorize('refund', $record)
+    ->authorize('refund')
     ->action(...);
 ```
 
-Or visibility-driven:
+Additional presentation-only visibility:
 
 ```php
 ->visible(fn (Order $record) => auth()->user()?->can('refund', $record) ?? false)
@@ -104,10 +105,6 @@ BulkAction::make('archive')
 ## Reusable action class
 
 When the same action appears in ≥2 surfaces, extract it. Create the class with this shape:
-
-```bash
-php artisan make:filament-action ApproveAction
-```
 
 ```php
 final class ApproveAction extends Action
@@ -247,11 +244,12 @@ Action::make('publish')
     ->label('Publish')
     ->icon('heroicon-o-paper-airplane')
     ->iconPosition(IconPosition::After)
-    ->color('success')                  // primary | secondary | success | warning | danger | info | gray
+    ->color('success')                  // primary | success | warning | danger | info | gray
     ->size(\Filament\Support\Enums\Size::Large) // xs | sm | md | lg | xl
-    ->button()                          // button | iconButton | link | outlined
+    ->button()                          // button | iconButton | link
+    ->outlined()                        // modifier for button presentation
     ->keyBindings(['mod+s'])
-    ->badge(fn () => Notification::query()->unread()->count())
+    ->badge(fn () => (string) auth()->user()->unreadNotifications()->count())
     ->badgeColor('danger')
     ->tooltip('Publish to all subscribers');
 ```
@@ -376,6 +374,17 @@ Wire into the table:
 ])
 ```
 
-- **MUST** queue imports of >1k rows — the action returns immediately and emails the admin when done.
+- Filament imports use job batches for all sizes. Asynchronous completion sends a database notification; sync imports send a persistent session notification. Email is not the default. **MUST** configure a queue worker for asynchronous processing; a sync queue connection runs jobs synchronously.
+- **MUST** install the job-batch, database-notification, and Filament action tables before imports/exports. If these migrations are not already present, generate/publish them and review them before migrating:
+
+  ```bash
+  php artisan make:queue-batches-table
+  php artisan make:notifications-table
+  php artisan vendor:publish --tag=filament-actions-migrations
+  php artisan migrate
+  ```
+
+- **MUST** match notification morph columns to the User key type (for example UUIDs), and use the documented PostgreSQL-compatible notification data column where applicable.
+- **SHOULD** enable panel database notifications so the initiating user can see completion feedback. The setup applies to exports too.
 - **MUST** put `resolveRecord()` logic in the Importer, not in `beforeFill` — Filament uses it to decide insert-vs-update per row.
 - **AVOID** wide CSV imports (>30 columns); split into multiple importers per concern (order header vs items vs payments).

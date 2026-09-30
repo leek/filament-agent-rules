@@ -21,7 +21,7 @@ Resolve these paths from the project root. Use the installed agent filename (`AG
 | Theme CSS | `resources/css/filament/CLAUDE.md` |
 | Filament tests | `tests/Feature/Filament/CLAUDE.md` |
 
-Targets the current Filament panel builder APIs: extracted resource `Schemas/` and `Tables/` classes, `Filament\Actions\*`, table `recordActions()` / `toolbarActions()`, action modal `schema()`, `TextColumn::badge()`, and layout components under `Filament\Schemas\Components\*`.
+Targets Filament 5.9.0 or later in 5.x, verified against that released baseline and current official source. **MUST** check installed versions before applying these examples. APIs include extracted resource `Schemas/` and `Tables/` classes, `Filament\Actions\*`, table `recordActions()` / `toolbarActions()`, action modal `schema()`, `TextColumn::badge()`, and layout components under `Filament\Schemas\Components\*`.
 
 All rules below are **MUST** unless tagged **SHOULD** / **PREFER** / **AVOID**.
 
@@ -46,7 +46,7 @@ A project frequently overrides Filament's defaults **globally** via `configureUs
 | Table definitions     | `app/Filament/Resources/{Models}/Tables/`          | `{Models}Table`                     |
 | Table columns         | `app/Filament/Resources/{Models}/Tables/Columns/`  | `{Model}{Field}Column` (e.g. `CustomerCountryColumn`) |
 | Table filters         | `app/Filament/Resources/{Models}/Tables/Filters/`  | `{Model}{Field}Filter` (e.g. `CustomerStatusFilter`) |
-| Cluster               | `app/Filament/Clusters/`                           | `{Name}` (no suffix)                |
+| Cluster               | `app/Filament/Clusters/{Domain}/`                  | `{Domain}Cluster`                   |
 | Custom Page           | `app/Filament/Pages/`                              | `{Name}` (no suffix)                |
 | Widget                | `app/Filament/Widgets/`                            | `{Name}Widget` / `{Name}Chart` / `{Name}Overview` / `Latest{Models}` (table widgets) |
 | PanelProvider         | `app/Providers/Filament/`                          | `{PanelId}PanelProvider`            |
@@ -88,7 +88,7 @@ Use the right component category:
 | -------- | --------- | ---- | -------- |
 | **Fields** | `Filament\Forms\Components\*` | accept input (with validation) | `TextInput`, `Select`, `Repeater`, `FileUpload` |
 | **Entries** | `Filament\Infolists\Components\*` | display a record attribute, read-only | `TextEntry`, `IconEntry`, `ImageEntry` |
-| **Layout** | `Filament\Schemas\Components\*` | structure / arrange other components | `Section`, `Grid`, `Tabs`, `Wizard`, `Fieldset`, `Split` |
+| **Layout** | `Filament\Schemas\Components\*` | structure / arrange other components | `Section`, `Grid`, `Tabs`, `Wizard`, `Fieldset`, `Flex` |
 | **Prime** | `Filament\Schemas\Components\*` | render static / computed content | `Text`, `Icon`, `Image`, `UnorderedList` |
 
 Top-level schema uses `->components([...])`; layout children use `->schema([...])`:
@@ -104,7 +104,7 @@ $schema->components([                      // top-level Schema → ->components(
 ]);
 ```
 
-- **MUST** mind the API seam: the top-level **`Schema`** takes **`->components([...])`**; a **layout component** nests its children via **`->schema([...])`**. (A few — `Split`, `Stack`, `Group`, `Wizard` — take their children as a constructor array instead, since their first argument isn't a label.) Calling `->components()` on a `Section` or `->schema()` on the top-level schema is a common mistake.
+- **MUST** mind the API seam: the top-level **`Schema`** takes **`->components([...])`**; a **layout component** nests its children via **`->schema([...])`**. `Flex`, `Group`, and `Wizard` accept their children as a constructor array. Calling `->components()` on a `Section` or `->schema()` on the top-level schema is a common mistake.
 - **MUST** choose a component's namespace by category, not by guess: a field is `Filament\Forms\Components\TextInput`, an entry is `Filament\Infolists\Components\TextEntry`, but the `Section`/`Grid`/`Tabs` wrapping either is `Filament\Schemas\Components\*`.
 - **PREFER** expressing any "custom layout" as nested layout + prime components in a schema before reaching for Blade — this component tree is the structural backing for the "Prefer built-in components over custom Blade" ladder below.
 
@@ -115,7 +115,7 @@ Custom Blade skips Filament theming, dark mode, spacing, and state handling. Bef
 1. **A built-in field / column / entry** — `TextInput`, `Select`, `TextColumn`, `TextEntry`, `IconColumn`, `ImageEntry`, … for record data.
 2. **A prime component** — `Text`, `Icon`, `Image`, `UnorderedList` (`Filament\Schemas\Components\*`) for *arbitrary* content (headings, notes, computed text, logos, bullet lists) in any schema. See `app/Filament/Resources/Schemas/CLAUDE.md` → "Prime components".
 3. **A `Callout`** — for an info / warning / error block (Schemas → "Callout").
-4. **A composition of the above** inside `Section` / `Grid` / `Fieldset` / `Split` — most "custom" layouts are just built-ins on a grid.
+4. **A composition of the above** inside `Section` / `Grid` / `Fieldset` / `Flex` — most "custom" layouts are just built-ins on a grid.
 5. **A custom component class** that returns a configured built-in (the `make()` pattern) — for reusable heavy config.
 6. **Custom Blade** (`->view(...)`, `ViewField`, `ViewEntry`, `ViewColumn`, a `Widget` view) — only when the markup is genuinely bespoke (a third-party embed, a hand-built chart, a non-Filament layout). For table cells specifically, `ViewColumn` and full custom column classes are the sanctioned hatch — see `app/Filament/Resources/Tables/CLAUDE.md` → "Custom columns".
 
@@ -142,6 +142,7 @@ use Filament\Support\Icons\Heroicon;
 enum OrderStatus: string implements HasLabel, HasColor, HasIcon
 {
     case Pending = 'pending';
+    case Approved = 'approved';
     case Paid    = 'paid';
     case Shipped = 'shipped';
     case Cancelled = 'cancelled';
@@ -150,6 +151,7 @@ enum OrderStatus: string implements HasLabel, HasColor, HasIcon
     {
         return match ($this) {
             self::Pending   => 'Pending',
+            self::Approved  => 'Approved',
             self::Paid      => 'Paid',
             self::Shipped   => 'Shipped',
             self::Cancelled => 'Cancelled',
@@ -160,6 +162,7 @@ enum OrderStatus: string implements HasLabel, HasColor, HasIcon
     {
         return match ($this) {
             self::Pending   => 'warning',
+            self::Approved  => 'success',
             self::Paid      => 'success',
             self::Shipped   => 'info',
             self::Cancelled => 'danger',
@@ -170,6 +173,7 @@ enum OrderStatus: string implements HasLabel, HasColor, HasIcon
     {
         return match ($this) {
             self::Pending   => Heroicon::Clock,
+            self::Approved  => Heroicon::CheckCircle,
             self::Paid      => Heroicon::CheckCircle,
             self::Shipped   => Heroicon::Truck,
             self::Cancelled => Heroicon::XCircle,
@@ -247,7 +251,7 @@ Custom columns, custom entries, `ViewColumn`/`ViewEntry`, and any `->view(...)` 
 
 - A **custom Livewire component** hosting a `FileUpload` (e.g. the embedded-component pattern in `app/Filament/Resources/Pages/CLAUDE.md`) **MUST** use the `RestrictsFileUploadsToSchemaComponents` trait. Without it, a crafted Livewire request can upload to **arbitrary property paths** on any component using `InteractsWithSchemas`. Filament's own resource pages already include it; your custom ones don't. (A conditionally-hidden `FileUpload` is not a valid upload target — uploads to it are rejected.)
 - **MUST** constrain every upload (`->acceptedFileTypes()`, `->maxSize()`, `->disk()`, `->visibility()`) — see `app/Filament/Resources/Schemas/CLAUDE.md` → "FileUpload".
-- **Multi-tenancy:** Filament scopes **resource** queries to the tenant automatically; **custom queries, actions, pages, and widgets MUST scope to `Filament::getTenant()` themselves** — one forgotten scope leaks another tenant's data. See `app/Providers/Filament/CLAUDE.md` → "Tenancy".
+- **Multi-tenancy:** Filament registers tenant global scopes for models with tenant-aware resources in the active panel after tenant identification. **MUST** verify scoping for custom queries, actions, pages, widgets, and related models; add explicit tenant constraints or middleware scopes when automatic scoping does not apply. Jobs and queries outside that panel context need their own tenant context. See `app/Providers/Filament/CLAUDE.md` → "Tenancy".
 - **SHOULD** verify, with tests, that authorization holds at **every** entry point — resource pages, custom pages, actions, bulk actions, inline columns. See `tests/Feature/Filament/CLAUDE.md`.
 
 ## Labels & localization
@@ -290,12 +294,13 @@ Enable on the `PanelProvider`:
 ```
 
 - **MUST NOT** poll the notification center faster than 30s in production — every poll runs a query per logged-in admin.
-- **MUST** run `php artisan notifications:table` and migrate before enabling `->databaseNotifications()` — without the table the panel throws on every page load.
+- **MUST** provide the database notifications table before enabling `->databaseNotifications()`. If its migration is absent, generate it with `php artisan make:notifications-table`, review it, and migrate.
 
 ### Inside an Action
 
 ```php
-->action(function (Order $record): void {
+->databaseTransaction()
+->action(function (Order $record, \Filament\Actions\Action $action): void {
     try {
         app(ApproveOrderAction::class)->run($record);
         Notification::make()->title('Approved')->success()->send();
@@ -306,8 +311,11 @@ Enable on the `PanelProvider`:
             ->danger()
             ->persistent()
             ->send();
+
+        $action->halt(shouldRollBackDatabaseTransaction: true);
     }
 });
 ```
 
-- **MUST** wrap fallible actions in try/catch and emit a `danger` notification — uncaught exceptions bubble to Livewire and render as a generic 500.
+- **MUST** keep multi-write mutations atomic. If an expected domain failure is caught inside a transactional action, notify and call `$action->halt(shouldRollBackDatabaseTransaction: true)` (or cancel with the same flag). Returning normally, or halting without the flag, commits the action transaction. An alternative is to catch outside the business action's transaction after it has rolled back.
+- **PREFER** catching expected domain failures for user feedback; unexpected exceptions should reach the application's exception handler.

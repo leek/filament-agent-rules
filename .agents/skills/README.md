@@ -3,6 +3,9 @@
 Optional task-scoped skills for agents that support `SKILL.md` folders.
 The canonical skill folders live here; `.claude/skills/*` contains individual
 symlinks back to each skill folder for Claude-style discovery.
+The current installer skips directory symlinks. After installation, create the
+individual Claude links in the target project using the step in the repository
+README; `.agents/skills/` itself is installed as ordinary files.
 
 These skills do not replace the directory-scoped rules in `app/`, `resources/`,
 and `tests/`. They route an agent from a task intent ("build a table",

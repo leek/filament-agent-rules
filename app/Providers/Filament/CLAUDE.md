@@ -145,7 +145,7 @@ For custom authentication (SSO, two-factor, magic links), pass a class:
 
 ## Authorization gate
 
-The panel runs `FilamentUser::canAccessPanel(Panel $panel)` if the User model implements it. **MUST** implement this on production deployments — otherwise any authenticated user can access the panel.
+The panel runs `FilamentUser::canAccessPanel(Panel $panel)` if the User model implements it. **MUST** implement this for production access. Without the contract, Filament allows authenticated access only in the `local` environment and denies it elsewhere.
 
 ```php
 final class User extends Authenticatable implements FilamentUser
@@ -170,7 +170,8 @@ final class User extends Authenticatable implements FilamentUser
 ->tenantMiddleware([ApplyTenantScopes::class], isPersistent: true)
 ```
 
-- **MUST** scope tenant-aware models via a global scope or `whereBelongsTo(Filament::getTenant())` — Filament doesn't auto-scope queries unless the model declares the tenant relationship.
+- Filament registers a tenant global scope for models with tenant-aware resources in the active panel, once the tenant is identified. **MUST** define the ownership relationship those resources use. Models without a tenant-aware resource in that panel need an additional middleware scope or explicit `whereBelongsTo(Filament::getTenant())` constraints.
+- **MUST** supply tenant context and scope explicitly in jobs, outside the tenant panel, and before tenant identification. Removing global scopes can remove tenancy protection too.
 - **MUST** authorize tenant access via `canAccessTenant(Model $tenant)` on the User model:
 
   ```php
@@ -231,14 +232,15 @@ TextInput::make('slug')
     ->scopedUnique(ignoreRecord: true);   // unique within current tenant
 
 Select::make('category_id')
-    ->scopedExists('id', 'categories');    // must exist *within current tenant*
+    ->scopedExists(\App\Models\Category::class, 'id');
 ```
 
 - **MUST** use `->scopedUnique()` / `->scopedExists()` (not plain `->unique()` / `->exists()`) for any tenant-scoped column — plain Laravel rules ignore the tenant context and either falsely reject or falsely accept.
+- **MUST** ensure the queried model actually has a tenant global scope in this context, or supply a tenant constraint through `modifyQueryUsing`. Scoped validation applies existing Eloquent scopes; it does not invent tenant ownership. The example requires `Category` to be scoped through a tenant-aware resource or middleware.
 
-### Form selects are NOT auto-scoped
+### Relationship selects — verify the related model's scope
 
-`->tenant(Team::class)` scopes resource queries but does **not** filter the options of relationship selects. Scope them manually:
+Relationship selects retain the related model's global scopes. A tenant-aware resource for that model in the active panel can therefore scope its options automatically. When no such scope applies, add a tenant constraint:
 
 ```php
 Select::make('customer_id')
@@ -250,7 +252,7 @@ Select::make('customer_id')
     ->required();
 ```
 
-- **MUST** add `modifyQueryUsing` to every relationship select on a tenant-scoped resource — without it, admins can pick records from other tenants and silently break isolation.
+- **MUST** verify both selectable options and submitted IDs stay within the tenant. Add `modifyQueryUsing` when automatic related-model scoping is absent; validate submitted IDs with a scoped query as well.
 
 ### Routing modes
 

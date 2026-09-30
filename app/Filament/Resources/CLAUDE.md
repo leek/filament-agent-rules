@@ -157,7 +157,7 @@ public static function getGlobalSearchResultDetails(Model $record): array
 {
     return [
         'Customer' => $record->customer->name,
-        'Status'   => $record->status->label(),
+        'Status'   => $record->status->getLabel(),
     ];
 }
 ```
@@ -169,8 +169,15 @@ public static function getGlobalSearchResultDetails(Model $record): array
 ```php
 public static function getNavigationBadge(): ?string
 {
-    return Cache::remember('orders:navigation_badge_pending_count', now()->addMinute(), function (): string {
-        return (string) Order::query()->where('status', 'pending')->count();
+    $tenant = Filament::getTenant();
+    $context = hash('sha256', json_encode([
+        Filament::getCurrentPanel()->getId(),
+        $tenant ? [$tenant::class, $tenant->getKey()] : null,
+        auth()->id(),
+    ], JSON_THROW_ON_ERROR));
+
+    return Cache::remember("orders:navigation_badge_pending_count:{$context}", now()->addMinute(), function (): string {
+        return (string) static::getEloquentQuery()->where('status', 'pending')->count();
     });
 }
 
@@ -181,6 +188,7 @@ public static function getNavigationBadgeColor(): ?string
 ```
 
 - **MUST** cache navigation badge queries when they hit a large table — they run on every panel page load for every navigation item. Use `Cache::remember()` with a short TTL, a shared cache-key constant, or a precomputed counter column; invalidate from the model observer when the underlying count changes.
+- **MUST** include the panel and tenant identity in cached query keys. Include user/permission context when visibility changes the result; permission changes require invalidation or a permission-version key. Use the same scoped query for cached and uncached results.
 
 ## Authorization
 
@@ -261,13 +269,6 @@ See `app/Filament/Clusters/CLAUDE.md`.
 
 ## Tenancy
 
-If the panel uses tenancy, **MUST** declare the tenant relationship and ownership:
+If the panel uses tenancy, **MUST** define the model's tenant ownership relationship and configure the resource's ownership relationship when it differs from Filament's convention. Tenant-aware resources are scoped automatically in the active tenant panel; preserve `parent::getEloquentQuery()` when overriding the query.
 
-```php
-public static function getEloquentQuery(): Builder
-{
-    return parent::getEloquentQuery()->whereBelongsTo(Filament::getTenant());
-}
-```
-
-…or rely on the global scope set by `Panel::tenant(Team::class)` if the model is tenant-scoped.
+**MUST** verify isolation for related models and custom queries, especially outside the panel request or when global scopes are removed. See `app/Providers/Filament/CLAUDE.md` → "Tenancy" for the scope boundaries and validation requirements.

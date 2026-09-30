@@ -30,7 +30,7 @@ app/Filament/Widgets/
 php artisan make:filament-widget OrdersOverview --stats-overview
 php artisan make:filament-widget RevenueChart   --chart
 php artisan make:filament-widget LatestOrders   --table
-php artisan make:filament-widget WeatherWidget  --resource=null
+php artisan make:filament-widget WeatherWidget
 ```
 
 ## Stats overview
@@ -57,7 +57,7 @@ final class OrdersOverview extends StatsOverviewWidget
 ```
 
 - **MUST** cache stat queries that hit large tables. Stats run on **every** dashboard load.
-- **SHOULD** use `Cache::remember('orders:pending:count', 60, fn () => ...)` for counts on tables >100k rows.
+- **SHOULD** cache counts on tables >100k rows. **MUST** include panel, tenant, and any user/permission context in the key, and preserve tenant scoping in the cached query; see `app/Filament/Resources/CLAUDE.md` → "Navigation badges".
 - **SHOULD** format large stat values with `Number::abbreviate(..., precision: 1)` when raw counts stop being scan-friendly (`7.5B`, `202.7K` beats `7457147561`).
 
 ## Chart widget

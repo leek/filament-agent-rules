@@ -48,19 +48,8 @@ database refresh conventions before adding tests.
 - Tests cover the regression risk introduced by the change, not unrelated
   framework behavior.
 
-## Helper Reference
+## Helper reference
 
-Common Filament Livewire helpers:
-
-| Helper | Use |
-| ------ | --- |
-| `callAction('name')` | header/footer action |
-| `callAction('name', data: [...])` | action with modal form state |
-| `callTableAction('name', $record)` | row action |
-| `callTableBulkAction('name', $records)` | bulk action |
-| `assertActionVisible('name')` / `assertActionHidden('name')` | action visibility |
-| `assertHasNoActionErrors()` / `assertHasActionErrors([...])` | action modal validation |
-| `assertFormSet([...])` | hydrated form state |
-
-For deferred table filters, call `filterTable(...)` and then
-`call('applyTableFilters')` before asserting records.
+Read `tests/Feature/Filament/CLAUDE.md` for action helper signatures,
+validation assertions, and deferred-filter examples. Use helpers supported
+by the project's installed Filament version and assert persisted outcomes.

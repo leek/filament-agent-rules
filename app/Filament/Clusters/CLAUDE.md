@@ -2,31 +2,31 @@
 
 **Purpose:** group multiple related Resources (and optionally Pages) under one sidebar item with its own sub-navigation. Use when a panel has 10+ resources and the sidebar starts to crowd.
 
-> **Filament's domain axis.** A cluster is the Filament equivalent of the **domain sub-namespacing** in `laravel-agent-rules` (`app/CLAUDE.md`): on top of the per-model resource layout it adds a business-domain grouping (`Commerce/`, `Billing/`), and the child resources physically move into `Clusters/{Domain}/Resources/...`. **MUST** reuse the **same domain name** the rest of the app already uses — `Billing/` in Models/Jobs/Policies → a `Billing` cluster here.
+> **Filament's domain axis.** A cluster adds business-domain grouping (`Commerce/`, `Billing/`) to the per-model resource layout. **PREFER** organizing its children under `Clusters/{Domain}/Resources/...`. **MUST** reuse the same domain name the rest of the app uses; the file move itself is optional.
 
 ## Where they live
 
 ```
 app/Filament/Clusters/
-├── Commerce.php                      cluster definition
-├── Commerce/
-│   ├── Resources/
-│   │   ├── Orders/
-│   │   │   ├── OrderResource.php
-│   │   │   ├── Pages/
-│   │   │   ├── Schemas/
-│   │   │   └── Tables/
-│   │   ├── Products/
-│   │   │   └── ProductResource.php
-│   │   └── Customers/
-│   │       └── CustomerResource.php
-│   └── Pages/
-│       └── SalesReport.php
+└── Commerce/
+    ├── CommerceCluster.php           cluster definition
+    ├── Resources/
+    │   ├── Orders/
+    │   │   ├── OrderResource.php
+    │   │   ├── Pages/
+    │   │   ├── Schemas/
+    │   │   └── Tables/
+    │   ├── Products/
+    │   │   └── ProductResource.php
+    │   └── Customers/
+    │       └── CustomerResource.php
+    └── Pages/
+        └── SalesReport.php
 ```
 
 ## Naming
 
-- **MUST** name after the domain noun, **no suffix** (`Commerce`, `Settings`, `Reports`, `Billing`).
+- **MUST** name the generated class `{Domain}Cluster` (`CommerceCluster`, `BillingCluster`) under `Clusters/{Domain}/`. Reuse the application's domain noun for the enclosing directory.
 
 ## Create
 
@@ -34,12 +34,12 @@ app/Filament/Clusters/
 php artisan make:filament-cluster Commerce
 ```
 
-This creates `app/Filament/Clusters/Commerce.php` and the empty `Commerce/Resources/` + `Commerce/Pages/` subdirectories.
+The current generator creates `app/Filament/Clusters/Commerce/CommerceCluster.php` (plus a view when requested). Child resource/page directories are added as those classes are generated.
 
 ## Class shape
 
 ```php
-final class Commerce extends Cluster
+final class CommerceCluster extends Cluster
 {
     protected static string|\BackedEnum|null $navigationIcon = 'heroicon-o-shopping-bag';
 
@@ -58,7 +58,7 @@ On each child Resource, declare cluster membership:
 ```php
 final class OrderResource extends Resource
 {
-    protected static ?string $cluster = Commerce::class;
+    protected static ?string $cluster = CommerceCluster::class;
     // ...
 }
 ```
@@ -72,7 +72,7 @@ final class OrderResource extends Resource
 ```php
 final class SalesReport extends Page
 {
-    protected static ?string $cluster = Commerce::class;
+    protected static ?string $cluster = CommerceCluster::class;
     // ...
 }
 ```
@@ -92,7 +92,7 @@ public static function canAccessClusteredComponents(): bool
 }
 ```
 
-When this returns `false`, none of the cluster's resources/pages appear in navigation, regardless of their own per-resource checks. Useful for role-gated sections.
+This controls whether the cluster registers its main navigation item. It does not authorize direct access to child pages/resources or replace their policies. **MUST** enforce section permissions in each child's authorization as well. **PREFER** retaining the default check that at least one child is accessible when overriding navigation visibility.
 
 ## When NOT to use a cluster
 

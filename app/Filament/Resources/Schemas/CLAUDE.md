@@ -49,6 +49,7 @@ final class OrderForm
                 ->schema([
                     Repeater::make('items')
                         ->relationship()
+                        ->orderColumn('sort')
                         ->schema([
                             TextInput::make('name')->required(),
                             TextInput::make('quantity')->numeric()->required(),
@@ -74,6 +75,7 @@ public static function form(Schema $schema): Schema
 
 ## Rules
 
+- **MUST** provide the related model's integer `sort` column before using the relationship repeater example's `->orderColumn('sort')`. UI reordering alone does not persist relationship order.
 - **MUST** extract resource form and infolist definitions from day one, following `app/Filament/Resources/CLAUDE.md` → "Code Quality — extract everything". Page/action schemas may remain inline when they are small and used once.
 - **MUST** mark every required column from the model as `->required()` on the form — Filament does not infer this from the migration.
 - **MUST** mirror `$casts` in form/infolist component choice: enum cast → `Select::make(...)->options(Status::class)`, datetime cast → `DateTimePicker::make(...)`, JSON cast → `KeyValue::make(...)` or `Repeater::make(...)`.
@@ -581,11 +583,7 @@ final class OrderInfolist
             Section::make('Summary')->schema([
                 TextEntry::make('reference')->copyable(),
                 TextEntry::make('customer.name')->label('Customer')->icon('heroicon-o-user'),
-                TextEntry::make('status')->badge()->color(fn (string $s) => match ($s) {
-                    'pending' => 'warning',
-                    'paid'    => 'success',
-                    default   => 'gray',
-                }),
+                TextEntry::make('status')->badge(), // enum implements HasLabel and HasColor
                 TextEntry::make('total_cents')->money('USD', divideBy: 100),
             ])->columns(2),
 
@@ -604,7 +602,7 @@ final class OrderInfolist
 ```
 
 - **MUST** eager-load relations referenced via dot-notation (`customer.name`) or by `RepeatableEntry::make('items')` on the Resource's `getEloquentQuery()` — same N+1 risk as table columns.
-- **SHOULD** use `Split::make([...])` with a main `Group` + sidebar `Group` for view pages that mix long-form content (description, comments) with metadata (status, dates).
+- **SHOULD** use `Flex::make([...])` with a main `Group` + sidebar `Group` for view pages that mix long-form content (description, comments) with metadata (status, dates). Schema layout uses `Filament\Schemas\Components\Flex`; `Split` belongs to table column layout.
 - **PREFER** `TextEntry::make(...)->badge()` over `IconEntry` for enum status — badges include the label text, which is more scannable than an icon alone.
 - **SHOULD** use a **prime component** (`Text`/`Icon`/`Image`/`UnorderedList`) for content not bound to a record attribute — section intros, instructions, computed notes. Entries are for record fields; don't abuse a `TextEntry` with a hardcoded string. See "Prime components".
 

@@ -66,6 +66,7 @@ it('lists, searches, filters, and renders columns', function () {
         ->assertCanSeeTableRecords([$match])
         ->assertCanNotSeeTableRecords([$miss])
         ->filterTable('status', 'pending')
+        ->call('applyTableFilters')
         ->assertCanSeeTableRecords([$match])
         ->assertCanRenderTableColumn('reference')
         ->assertCanRenderTableColumn('customer.name')
@@ -158,7 +159,7 @@ it('publishes a draft', function () {
     livewire(EditOrder::class, ['record' => $order->getRouteKey()])
         ->callAction('approve');
 
-    expect($order->refresh()->status)->toBe('approved');
+    expect($order->refresh()->status)->toBe(OrderStatus::Approved);
 });
 
 it('hides approve action for already-approved orders', function () {

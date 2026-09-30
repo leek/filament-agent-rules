@@ -19,6 +19,7 @@ const rules = ['app', 'resources', 'tests'].flatMap(walk).filter((file) => file.
 const skills = walk('.agents/skills').filter((file) => file.endsWith('/SKILL.md'));
 for (const file of [...rules, ...skills]) {
     const text = read(file);
+    if (skills.includes(file) && /^```(?:php|blade)\b/m.test(text)) fail(file, 'skill must route to canonical code examples, not copy them');
     if ((text.match(/^```/gm)?.length ?? 0) % 2) fail(file, 'unclosed fenced block');
     for (const [, target] of text.matchAll(/`((?:app|resources|tests)\/[^`]+\/CLAUDE\.md)`/g)) {
         if (!exists(target)) fail(file, `missing rule pointer ${target}`);
@@ -29,8 +30,16 @@ for (const file of [...rules, ...skills]) {
         [/protected\s+int\s+\$sort\b/, 'widget sort is static and nullable'],
         [/\bActionSize::/, 'use Filament\\Support\\Enums\\Size'],
         [/\bNotificationAction::/, 'use Filament\\Actions\\Action for notifications'],
+        [/\bmake:filament-action\b/, 'no make:filament-action command exists'],
+        [/\bgetTableEloquentQuery\s*\(/, 'use table modifyQueryUsing'],
+        [/--resource=null\b/, 'null is interpreted as a resource name'],
+        [/->scopedExists\(['"]id['"]/, 'scopedExists takes a model class first'],
+        [/->authorize\(['"][^'"]+['"],\s*\$record\)/, 'record-bound authorize supplies the record automatically'],
     ];
     for (const [pattern, message] of checks) if (pattern.test(text)) fail(file, message);
+    if (['app/Filament/CLAUDE.md', 'app/Filament/Resources/Schemas/CLAUDE.md'].includes(file) && /Split::make|`Split`/.test(text.replace(/`Split` belongs to table column layout\./g, ''))) {
+        fail(file, 'schema layouts use Flex, not Split');
+    }
     if (/extends\s+(?:Page|Widget)\b/.test(text) && /protected\s+static\s+string\s+\$view\b/.test(text)) {
         fail(file, 'Page and Widget view properties are non-static');
     }

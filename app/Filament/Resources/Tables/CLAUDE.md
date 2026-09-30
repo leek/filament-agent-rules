@@ -84,7 +84,7 @@ final class CustomerCountryColumn
     {
         return TextColumn::make('country.name')
             ->label('Country')
-            ->searchable(['country.name', 'country.iso_code'])
+            ->searchable(['name', 'iso_code'])
             ->sortable()
             ->badge()
             ->color(fn (Customer $record) => $record->country?->is_eu ? 'info' : 'gray');
@@ -287,11 +287,10 @@ Use `->recordActions(...)` for per-row actions.
 
 ## Header actions
 
-Table-scoped operations (Create, Import, Export, Attach) belong here, not on the page:
+Use table headers for table-scoped operations, such as importing into this table or attaching related records. Resource-wide Create/Import/Export actions belong on the List page; see `app/Filament/Actions/CLAUDE.md` → "Header actions vs row actions vs page actions".
 
 ```php
 ->headerActions([
-    CreateAction::make(),
     Action::make('import')
         ->icon('heroicon-o-arrow-up-tray')
         ->schema([
@@ -307,6 +306,7 @@ Table-scoped operations (Create, Import, Export, Attach) belong here, not on the
 ```
 
 - **MUST** delegate non-trivial work to an `app/Actions/` class.
+- **MUST** place the Resource list's Create action in `getHeaderActions()` on its List page, following `app/Filament/Resources/Pages/CLAUDE.md`. Use table `headerActions()` for table-scoped operations and relation-manager Create actions; add only one primary Create button.
 - **AVOID** putting record-scoped actions in `headerActions()` — they have no `$record` and confuse the admin.
 
 ## ImageColumn options

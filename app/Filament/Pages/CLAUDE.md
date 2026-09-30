@@ -21,7 +21,7 @@ app/Filament/Pages/
 
 ```bash
 php artisan make:filament-page Settings
-php artisan make:filament-page ImportProducts --resource=ProductResource --type=custom
+php artisan make:filament-page ImportProducts
 ```
 
 ## Class shape
@@ -160,7 +160,7 @@ protected function getHeaderActions(): array
 
 ## Tenancy
 
-If the panel uses tenancy, the page is automatically scoped to the current tenant via the URL. **MUST** verify `Filament::getTenant()` inside any data fetch — never read `auth()->user()->team` directly when a tenant context exists.
+If the panel uses tenancy, its URL establishes tenant context; it does not scope every model queried by a custom page. **MUST** verify the model's tenant scope inside data fetches and use `Filament::getTenant()` for explicit constraints. See `app/Providers/Filament/CLAUDE.md` → "Tenancy".
 
 ## Polling / live updates
 

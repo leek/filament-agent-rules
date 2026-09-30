@@ -63,42 +63,13 @@ rules first and mention any docs-derived assumption.
 
 ## Version Stance
 
-Use the current Filament panel builder API consistently. Do not branch examples
-by Filament major version unless the user explicitly asks for a migration note.
+These rules target Filament 5.9.0 or later in 5.x. Verify `composer.lock` or
+installed package versions before applying them. Use current panel builder APIs;
+do not branch examples by major version unless migration guidance is requested.
 
-## Deep Pattern: Global Defaults Scan
+## Global defaults scan
 
-When a task touches panel-wide behavior, inspect providers for
-`configureUsing()` blocks before editing local resources. Common defaults to
-look for:
-
-- action presentation: `slideOver`, icons, `modalIcon`, `modalIconColor`,
-  `createAnother(false)`
-- fields: `Select` native/searchable/preload, `TextInput::trim()`,
-  `Textarea` rows, date/time picker precision
-- uploads: disk, visibility, directory, `moveFiles`, accepted file types
-- tables: page sizes, default pagination, filter/sort/search persistence,
-  striping
-- schemas: date/time display formats, translated labels,
-  Repeater/Builder delete confirmation
-
-Use `bootUsing()` inside `configureUsing()` when the default depends on the
-component's final state:
-
-```php
-Action::configureUsing(fn (Action $action) => $action->bootUsing(function () use ($action): void {
-    if (! $action->isConfirmationRequired()) {
-        $action->slideOver();
-    }
-}));
-
-DeleteAction::configureUsing(fn (DeleteAction $action) => $action
-    ->icon(Heroicon::OutlinedTrash)
-    ->modalIcon(Heroicon::OutlinedTrash)
-    ->modalIconColor('danger'));
-
-Select::configureUsing(fn (Select $select) => $select
-    ->native(false)
-    ->searchable(fn (Select $component) => $component->hasRelationship())
-    ->preload(fn (Select $component) => $component->isSearchable()));
-```
+Before panel-wide work, read `app/Providers/Filament/CLAUDE.md` → "Global
+defaults via configureUsing" and inspect the target project's actual provider
+configuration. Use the canonical examples for state-dependent bootUsing
+callbacks and action, field, upload, table, and schema defaults.

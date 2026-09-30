@@ -74,7 +74,7 @@ Hook map:
 | `handleRecordUpdate($record, $data)` | Edit: replace the persist call entirely|
 | `beforeCreate()` / `afterCreate()`| Create: side effects                     |
 | `beforeSave()` / `afterSave()`    | Edit: side effects                       |
-| `beforeDelete()` / `afterDelete()`| Edit/View: side effects                  |
+| `DeleteAction::make()->before(...) / ->after(...)` | Delete action lifecycle callbacks |
 
 - **MUST** wrap multi-step work inside `handleRecordCreation` / `handleRecordUpdate` in a DB transaction.
 - **SHOULD** prefer `afterCreate()` / `afterSave()` for "fire-and-forget" side effects (notifications, queued jobs).
@@ -143,16 +143,18 @@ final class TicketSidebar extends Component
 
     public function transitionTo(string $status): void
     {
+        $record = TicketResource::getEloquentQuery()->findOrFail($this->record?->getKey());
+        \Illuminate\Support\Facades\Gate::authorize('update', $record);
         $next = TicketStatus::from($status);
 
-        if (! in_array($next, $this->record->status->nextAllowedStatuses(), strict: true)) {
+        if (! in_array($next, $record->status->nextAllowedStatuses(), strict: true)) {
             Notification::make()->danger()->title('Invalid transition')->send();
 
             return;
         }
 
-        app(TransitionTicketStatus::class)->run($this->record, $next);   // audit write, timestamps, persist
-        $this->record->refresh();
+        app(TransitionTicketStatus::class)->run($record, $next);   // audit write, timestamps, persist
+        $this->record = $record->refresh();
 
         Notification::make()->success()->title("Status updated to {$next->getLabel()}")->send();
     }
@@ -160,12 +162,15 @@ final class TicketSidebar extends Component
     #[On('ticket-sidebar-refresh')]
     public function refreshRecord(): void
     {
-        $this->record->refresh();
+        $record = TicketResource::getEloquentQuery()->findOrFail($this->record?->getKey());
+        \Illuminate\Support\Facades\Gate::authorize('view', $record);
+        $this->record = $record;
     }
 }
 ```
 
 - **MUST** pass the record as a prop (`['record' => $this->getRecord()]`) — Livewire serializes the model reference and rehydrates it each request. Only serializable data crosses into an embedded component; it can't reach the parent page's live form state.
+- **MUST** re-resolve records through the tenant-scoped Resource query and authorize inside every callable mutation/listener. Parent-page access does not authorize an embedded component's operations; use the application's specific transition ability when it differs from `update`.
 - **MUST** delegate the actual mutation to an `app/Actions/` class (`TransitionTicketStatus`) — the Livewire component is a UI boundary, exactly like a Filament Action. Transition rules, audit-trail writes, and `resolved_at`/`closed_at` stamping belong in the Action, not the component.
 - **SHOULD** refresh via a dispatched event + `#[On(...)]` listener so the embedded component re-reads after the form saves (`afterSave()` → `$this->dispatch('ticket-sidebar-refresh')`).
 - **MUST** back status/badge rendering with `HasColor`/`HasLabel` enums so the sidebar and the resource table share one source of truth (hub → "Enums for status / type / category").
