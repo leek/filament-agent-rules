@@ -54,7 +54,7 @@ protected function mutateFormDataBeforeSave(array $data): array
 
 protected function afterCreate(): void
 {
-    app(NotifyCustomerOrderCreated::class)->run($this->record);
+    app(NotifyCustomerOrderCreatedAction::class)->run($this->record);
 }
 
 protected function afterSave(): void
@@ -132,7 +132,7 @@ final class EditTicket extends EditRecord
 `Livewire::make(SomeComponent::class, [...])` embeds any Livewire component into the schema. Pass props as the second arg — on an Edit/View page `$this->getRecord()` is loaded by the time `content()` runs (on Create it's `null`, so guard with `->hidden(fn (?Model $record) => $record === null)` if the component needs the record).
 
 ```php
-use App\Actions\TransitionTicketStatus;
+use App\Actions\TransitionTicketStatusAction;
 use Filament\Notifications\Notification;
 use Livewire\Attributes\On;
 use Livewire\Component;
@@ -153,7 +153,7 @@ final class TicketSidebar extends Component
             return;
         }
 
-        app(TransitionTicketStatus::class)->run($record, $next);   // audit write, timestamps, persist
+        app(TransitionTicketStatusAction::class)->run($record, $next);   // audit write, timestamps, persist
         $this->record = $record->refresh();
 
         Notification::make()->success()->title("Status updated to {$next->getLabel()}")->send();
@@ -171,7 +171,7 @@ final class TicketSidebar extends Component
 
 - **MUST** pass the record as a prop (`['record' => $this->getRecord()]`) — Livewire serializes the model reference and rehydrates it each request. Only serializable data crosses into an embedded component; it can't reach the parent page's live form state.
 - **MUST** re-resolve records through the tenant-scoped Resource query and authorize inside every callable mutation/listener. Parent-page access does not authorize an embedded component's operations; use the application's specific transition ability when it differs from `update`.
-- **MUST** delegate the actual mutation to an `app/Actions/` class (`TransitionTicketStatus`) — the Livewire component is a UI boundary, exactly like a Filament Action. Transition rules, audit-trail writes, and `resolved_at`/`closed_at` stamping belong in the Action, not the component.
+- **MUST** delegate the actual mutation to an `app/Actions/` class (`TransitionTicketStatusAction`) — the Livewire component is a UI boundary, exactly like a Filament Action. Transition rules, audit-trail writes, and `resolved_at`/`closed_at` stamping belong in the Action, not the component.
 - **SHOULD** refresh via a dispatched event + `#[On(...)]` listener so the embedded component re-reads after the form saves (`afterSave()` → `$this->dispatch('ticket-sidebar-refresh')`).
 - **MUST** back status/badge rendering with `HasColor`/`HasLabel` enums so the sidebar and the resource table share one source of truth (hub → "Enums for status / type / category").
 - **SHOULD** add `->key('...')` when embedding multiple instances of the same component, and `->lazy()` for an expensive component so the page paints first.

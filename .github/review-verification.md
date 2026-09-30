@@ -73,3 +73,36 @@ Validation: source/released-source comparison, lint and whitespace checks,
 disposable installation for all six agent mappings, post-install Claude links,
 and assertions that maintenance scripts/meta rules do not ship with documented
 exclusions. No external installer repository was modified.
+
+## Tier 3
+
+| Finding | Verdict and evidence | Resolution |
+| --- | --- | --- |
+| Get/Set imports | Confirmed omission: callbacks use bare utility names without an import guide. Current classes are in `packages/schemas/src/Components/Utilities`. | Add namespace guidance and lint old namespaces. |
+| Lazy-loading prevention | Confirmed missing setup despite checklist dependency. Laravel Model exposes preventLazyLoading/preventsLazyLoading; official relationship docs describe the guard. | Test-bootstrap setup plus query-count caveat; renderability alone is not N+1 proof. |
+| Panel/tenant test context | Confirmed absent. `docs/10-testing/02-testing-resources.md` requires setCurrentPanel and illustrates setTenant/bootCurrentPanel for tenancy. | Explicit panel setup, tenant membership/context/boot example, cross-tenant coverage and context reset requirements. |
+| TestAction helpers | Valid modernization request, **not broken legacy APIs**: TestsActions/TestsBulkActions still expose callTableAction/callTableBulkAction. Official action-testing docs recommend TestAction table/bulk context. | Modernize row/header/bulk examples; retain valid string callAction for page actions. |
+| Cluster routing | Confirmed missing row in filament-docs task table. | Add cluster and clustered-child routing. |
+| Widget examples contradict rules | Confirmed: first chart assembled its own data; table widget lacked explicit eager loading despite its own mandate. A missing with() alone does not prove an actual N+1 because Filament can eager-load. | Delegate aggregation to named business Action receiving a scoped Builder; eager-load customer explicitly. Tab fallback was completed in Tier 1. |
+| Filter form/schema style | form() is a deprecated alias, **not a nonexistent API**, in Filters/Concerns/HasSchema.php. | Use current schema() consistently. |
+| Icons/action names | Confirmed style mismatch, **not invalid string icons**. All replacement enum cases checked in support Icons Heroicon. Business-action example names omitted the prescribed Action suffix. | Prefer verified enum icons in PHP/Blade examples; align business Action names and distinguish them from UI classes. |
+| CSS vocabulary | Confirmed repository style gap. | Completed with the Tier 1 theme rewrite using MUST/PREFER vocabulary. |
+| Pivot attachment form | Confirmed by `docs/03-resources/07-managing-relationships.md` and AttachAction: getRecordSelect plus pivot fields belongs in action schema; recordId is not an ordinary related-model attribute. | AttachAction schema and withPivot requirements on both relationship directions. |
+| Nullable slug state | Confirmed by schema HasState::getRawState(): blank non-array state becomes null before callbacks; required validation does not prevent editing callbacks. | Nullable callback and empty-string fallback, lint non-null state pattern. |
+| Static cancel call | Confirmed by actions Action::cancel: public non-static method. | Inject/use the action instance; explain rollback flag; lint static call. |
+
+Validation: lint, whitespace checks, source signature/enum-case checks, a PHP
+null-state reproduction, and regression fixtures for the added guards. The
+canonical rule and skill links remain intact. No runtime Filament app exists in
+this repository, so these checks do not claim an application test suite ran.
+
+## Completion audit
+
+All supplied findings have a verdict above, including subordinate claims and the
+three initially unchecked Claude observations. Confirmed defects were corrected;
+valid/deprecated APIs and contextual behavior were qualified rather than treated
+as hallucinated framework removals. The ignored local maintenance CLAUDE.md was
+also corrected for routing, Cursor output, skill links, and filesystem installation;
+it remains untracked as required. Git ignore comments now describe the actual
+local-install boundary. Final checks run against a Git archive of the committed
+distribution, so ignored local files cannot conceal missing tracked lint assets.

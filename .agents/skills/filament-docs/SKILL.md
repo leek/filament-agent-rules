@@ -40,6 +40,7 @@ Read only the files relevant to the task:
 | Forms and infolists | `app/Filament/Resources/Schemas/CLAUDE.md` |
 | Tables | `app/Filament/Resources/Tables/CLAUDE.md` |
 | Actions | `app/Filament/Actions/CLAUDE.md` |
+| Clusters and clustered resources/pages | `app/Filament/Clusters/CLAUDE.md` |
 | Custom pages and dashboards | `app/Filament/Pages/CLAUDE.md` |
 | Widgets | `app/Filament/Widgets/CLAUDE.md` |
 | Panel providers and discovery | `app/Providers/Filament/CLAUDE.md` |

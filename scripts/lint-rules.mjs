@@ -35,6 +35,9 @@ for (const file of [...rules, ...skills]) {
         [/--resource=null\b/, 'null is interpreted as a resource name'],
         [/->scopedExists\(['"]id['"]/, 'scopedExists takes a model class first'],
         [/->authorize\(['"][^'"]+['"],\s*\$record\)/, 'record-bound authorize supplies the record automatically'],
+        [/\bAction::cancel\(/, 'cancel is an instance method'],
+        [/Filament\\Forms\\(?:Get|Set)\b/, 'Get and Set belong to Schemas Components Utilities'],
+        [/afterStateUpdated\(fn \(string \$state/, 'cleared field state may be null'],
     ];
     for (const [pattern, message] of checks) if (pattern.test(text)) fail(file, message);
     if (['app/Filament/CLAUDE.md', 'app/Filament/Resources/Schemas/CLAUDE.md'].includes(file) && /Split::make|`Split`/.test(text.replace(/`Split` belongs to table column layout\./g, ''))) {
@@ -50,6 +53,9 @@ for (const file of [...rules, ...skills]) {
     }
     for (const match of text.matchAll(/FileUpload::make\([\s\S]*?(?=\n\s*\w+::make\(|```|$)/g)) {
         if (!/->maxSize\(/.test(match[0])) fail(file, 'FileUpload example must specify maxSize');
+    }
+    for (const match of text.matchAll(/BulkAction::make\(['"]archive['"]\)[\s\S]*?(?=\n\s*BulkAction::make|```|$)/g)) {
+        if (!/->authorizeIndividualRecords\(['"]archive['"]\)/.test(match[0])) fail(file, 'bulk archive must authorize individual records');
     }
 }
 

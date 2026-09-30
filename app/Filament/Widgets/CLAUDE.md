@@ -45,7 +45,7 @@ final class OrdersOverview extends StatsOverviewWidget
         return [
             Stat::make('Pending', Order::query()->where('status', 'pending')->count())
                 ->description('Awaiting approval')
-                ->descriptionIcon('heroicon-m-clock')
+                ->descriptionIcon(\Filament\Support\Icons\Heroicon::Clock)
                 ->color('warning'),
 
             Stat::make('Today', Order::query()->whereDate('created_at', today())->count())
@@ -69,15 +69,7 @@ final class RevenueChart extends ChartWidget
 
     protected function getData(): array
     {
-        $data = Trend::model(Order::class)
-            ->between(start: now()->subDays(30), end: now())
-            ->perDay()
-            ->sum('total_cents');
-
-        return [
-            'datasets' => [['label' => 'Revenue', 'data' => $data->map(fn ($v) => $v->aggregate / 100)]],
-            'labels'   => $data->map(fn ($v) => $v->date),
-        ];
+        return app(BuildRevenueChartDataAction::class)->run(OrderResource::getEloquentQuery(), 'month');
     }
 
     protected function getType(): string
@@ -86,6 +78,41 @@ final class RevenueChart extends ChartWidget
     }
 }
 ```
+
+The business Action assembles the chart data; this example requires the
+`flowframe/laravel-trend` package:
+
+```php
+use Flowframe\Trend\Trend;
+use Illuminate\Database\Eloquent\Builder;
+
+final class BuildRevenueChartDataAction
+{
+    public function run(Builder $orders, ?string $range = 'month'): array
+    {
+        $start = match ($range) {
+            'today' => today(),
+            'week' => now()->subWeek(),
+            'year' => now()->subYear(),
+            default => now()->subDays(30),
+        };
+
+        $data = Trend::query($orders)
+            ->between(start: $start, end: now())
+            ->perDay()
+            ->sum('total_cents');
+
+        return [
+            'datasets' => [['label' => 'Revenue', 'data' => $data->map(fn ($v) => $v->aggregate / 100)->all()]],
+            'labels' => $data->map(fn ($v) => $v->date)->all(),
+        ];
+    }
+}
+```
+
+**MUST** pass an appropriately scoped query to the aggregation Action. This
+example runs in the active panel; jobs or non-panel callers must supply tenant
+context and use an application query that enforces ownership.
 
 - **MUST** use `flowframe/laravel-trend` (or equivalent) for time-series aggregations — never loop dates in PHP.
 - **SHOULD** add `protected ?string $pollingInterval = '60s';` only on charts that need live data. Otherwise `null` to disable polling.
@@ -112,7 +139,7 @@ final class RevenueChart extends ChartWidget
 
     protected function getData(): array
     {
-        return app(BuildRevenueChartData::class)->run($this->filter);
+        return app(BuildRevenueChartDataAction::class)->run(OrderResource::getEloquentQuery(), $this->filter);
     }
 
     protected function getType(): string
@@ -178,7 +205,7 @@ final class LatestOrders extends TableWidget
     public function table(Table $table): Table
     {
         return $table
-            ->query(Order::query()->latest()->limit(10))
+            ->query(OrderResource::getEloquentQuery()->with('customer')->latest()->limit(10))
             ->columns([
                 TextColumn::make('reference'),
                 TextColumn::make('customer.name'),

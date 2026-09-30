@@ -125,19 +125,17 @@ For pivot relations, **MUST** decide explicitly:
 - **`CreateAction`** — create a new related row AND attach it.
 - **`AssociateAction` / `DissociateAction`** — for HasMany when the FK is nullable.
 
-Pivot fields:
+For attaching an existing record with pivot fields, customize the Attach action's schema in the table's header actions:
 
 ```php
-public function form(Schema $schema): Schema
-{
-    return $schema->components([
-        Select::make('recordId')
-            ->relationship('roles', 'name'),
-        TextInput::make('expires_at')   // pivot column
-            ->type('date'),
+AttachAction::make()
+    ->schema(fn (AttachAction $action): array => [
+        $action->getRecordSelect(),
+        DatePicker::make('expires_at'), // pivot column
     ]);
-}
 ```
+
+- **MUST** expose pivot fields with `withPivot('expires_at')` on both sides of the relationship. Attachment uses the action's record selector; the relation manager's ordinary form describes creating/editing the related model.
 
 ## ManageRelatedRecords page (full-page variant)
 

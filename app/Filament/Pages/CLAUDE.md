@@ -34,7 +34,7 @@ use Filament\Schemas\Schema;
 
 final class Settings extends Page
 {
-    protected static string|\BackedEnum|null $navigationIcon = 'heroicon-o-cog-6-tooth';
+    protected static string|\BackedEnum|null $navigationIcon = \Filament\Support\Icons\Heroicon::OutlinedCog6Tooth;
 
     protected static string|\UnitEnum|null $navigationGroup = 'Admin';
 
@@ -189,7 +189,7 @@ final class Analytics extends Page
      * @return array<int, array{
      *   key: string,
      *   title: string,
-     *   icon?: string,
+     *   icon?: string|\BackedEnum,
      *   widgets?: array<int, class-string<Widget>>,
      * }>
      */
@@ -199,13 +199,13 @@ final class Analytics extends Page
             [
                 'key'     => 'overview',
                 'title'   => 'Overview',
-                'icon'    => 'heroicon-o-home',
+                'icon'    => \Filament\Support\Icons\Heroicon::OutlinedHome,
                 'widgets' => [OrdersOverview::class, RevenueChart::class],
             ],
             [
                 'key'     => 'revenue',
                 'title'   => 'Revenue',
-                'icon'    => 'heroicon-o-currency-dollar',
+                'icon'    => \Filament\Support\Icons\Heroicon::OutlinedCurrencyDollar,
                 'widgets' => [RevenueBreakdown::class, TopProducts::class],
             ],
         ];

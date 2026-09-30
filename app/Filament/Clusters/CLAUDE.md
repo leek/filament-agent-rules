@@ -41,7 +41,7 @@ The current generator creates `app/Filament/Clusters/Commerce/CommerceCluster.ph
 ```php
 final class CommerceCluster extends Cluster
 {
-    protected static string|\BackedEnum|null $navigationIcon = 'heroicon-o-shopping-bag';
+    protected static string|\BackedEnum|null $navigationIcon = \Filament\Support\Icons\Heroicon::OutlinedShoppingBag;
 
     protected static ?string $navigationLabel = 'Commerce';
 

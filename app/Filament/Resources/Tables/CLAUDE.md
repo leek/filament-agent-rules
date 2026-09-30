@@ -168,7 +168,7 @@ ViewColumn::make('rating')
 <div class="flex gap-0.5">
     @for ($i = 1; $i <= $max; $i++)
         <x-filament::icon
-            :icon="$i <= $rating ? 'heroicon-s-star' : 'heroicon-o-star'"
+            :icon="$i <= $rating ? \Filament\Support\Icons\Heroicon::Star : \Filament\Support\Icons\Heroicon::OutlinedStar"
             @class([
                 'h-4 w-4',
                 'text-warning-500' => $i <= $rating,
@@ -238,7 +238,7 @@ AudioPlayerColumn::make('recording')
 | Filter         | Use for                                                  |
 | -------------- | -------------------------------------------------------- |
 | `SelectFilter` | one-of-N enum                                            |
-| `Filter` + `->form([...])` | custom (date range, numeric range, multi-select) |
+| `Filter` + `->schema([...])` | custom (date range, numeric range, multi-select) |
 | `TernaryFilter`| boolean (yes / no / all)                                 |
 | `TrashedFilter`| soft-deleted records                                     |
 
@@ -246,7 +246,7 @@ Custom filter:
 
 ```php
 Filter::make('created_at')
-    ->form([
+    ->schema([
         DatePicker::make('from'),
         DatePicker::make('until'),
     ])
@@ -292,7 +292,7 @@ Use table headers for table-scoped operations, such as importing into this table
 ```php
 ->headerActions([
     Action::make('import')
-        ->icon('heroicon-o-arrow-up-tray')
+        ->icon(\Filament\Support\Icons\Heroicon::OutlinedArrowUpTray)
         ->schema([
             FileUpload::make('file')
                 ->required()

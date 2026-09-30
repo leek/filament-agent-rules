@@ -357,6 +357,16 @@ Tabs::make('Translations')
 
 ## State callbacks
 
+**MUST** import schema state utilities from their current namespace:
+
+```php
+use Filament\Schemas\Components\Utilities\{Get, Set};
+```
+
+These utilities apply to form fields and other schema components. A cleared
+field can supply null state even when required validation will reject it later;
+**MUST** allow null in callbacks that run while users edit the field.
+
 | Callback                   | Runs when                                                      |
 | -------------------------- | -------------------------------------------------------------- |
 | `->afterStateHydrated(fn)` | After form is filled from the model (Edit page)                |
@@ -371,7 +381,7 @@ Slug-from-title pattern:
 TextInput::make('title')
     ->required()
     ->live(onBlur: true)
-    ->afterStateUpdated(fn (string $state, Set $set) => $set('slug', Str::slug($state)))
+    ->afterStateUpdated(fn (?string $state, Set $set) => $set('slug', Str::slug($state ?? '')))
     ->partiallyRenderComponentsAfterStateUpdated(['slug']);   // re-render ONLY slug, not the whole form
 
 TextInput::make('slug')
@@ -582,7 +592,7 @@ final class OrderInfolist
         return $schema->components([
             Section::make('Summary')->schema([
                 TextEntry::make('reference')->copyable(),
-                TextEntry::make('customer.name')->label('Customer')->icon('heroicon-o-user'),
+                TextEntry::make('customer.name')->label('Customer')->icon(\Filament\Support\Icons\Heroicon::OutlinedUser),
                 TextEntry::make('status')->badge(), // enum implements HasLabel and HasColor
                 TextEntry::make('total_cents')->money('USD', divideBy: 100),
             ])->columns(2),

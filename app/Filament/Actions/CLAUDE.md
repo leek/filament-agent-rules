@@ -32,7 +32,7 @@ app/Filament/Actions/
 ```php
 Action::make('approve')
     ->label('Approve')
-    ->icon('heroicon-o-check')
+    ->icon(\Filament\Support\Icons\Heroicon::OutlinedCheck)
     ->color('success')
     ->authorize('approve')
     ->visible(fn (Order $record) => $record->status === OrderStatus::Pending)
@@ -120,7 +120,7 @@ final class ApproveAction extends Action
 
         $this
             ->label('Approve')
-            ->icon('heroicon-o-check')
+            ->icon(\Filament\Support\Icons\Heroicon::OutlinedCheck)
             ->color('success')
             ->requiresConfirmation()
             ->action(fn (Order $record) => app(ApproveOrderAction::class)->run($record));
@@ -158,14 +158,13 @@ $table->recordActions([
 
 ## Halting / cancelling
 
-Inside an `->action(...)` callback, bail out cleanly with `$action->halt()` or `Action::cancel()`:
+Inside an `->action(...)` callback, inject the Action instance and bail out with `$action->halt()` (keep modal open) or `$action->cancel()` (close it). If writes must be rolled back, pass `shouldRollBackDatabaseTransaction: true`; see the hub's "Inside an Action" example:
 
 ```php
 ->action(function (Order $record, Action $action): void {
     if ($record->isLocked()) {
         Notification::make()->danger()->title('Order is locked')->send();
         $action->halt();
-        return;
     }
     app(ApproveOrderAction::class)->run($record);
 });
@@ -216,7 +215,7 @@ For long input flows, use `->steps([...])` instead of a single `->schema(...)`:
 
 ```php
 Action::make('createOrder')
-    ->icon('heroicon-o-shopping-cart')
+    ->icon(\Filament\Support\Icons\Heroicon::OutlinedShoppingCart)
     ->steps([
         Wizard\Step::make('Customer')->schema([
             Select::make('customer_id')->relationship('customer', 'name')->required(),
@@ -242,7 +241,7 @@ Action::make('createOrder')
 ```php
 Action::make('publish')
     ->label('Publish')
-    ->icon('heroicon-o-paper-airplane')
+    ->icon(\Filament\Support\Icons\Heroicon::OutlinedPaperAirplane)
     ->iconPosition(IconPosition::After)
     ->color('success')                  // primary | success | warning | danger | info | gray
     ->size(\Filament\Support\Enums\Size::Large) // xs | sm | md | lg | xl

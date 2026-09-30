@@ -133,6 +133,8 @@ The ladder above is about a single component. The same instinct applies one leve
 
 ## Enums for status / type / category
 
+**PREFER** `Filament\Support\Icons\Heroicon` enum cases for PHP icon configuration, matching the examples. String icon identifiers remain valid for custom icon sets; verify each identifier against the installed package. Use `{Verb}{Noun}Action` names for business Actions, distinct from UI Action class names.
+
 Back every status, type, or category column with a PHP enum that implements the Filament presentation contracts. One enum drives the form select, the table badge, the infolist entry, and the policy guard — no parallel `match` blocks to keep in sync.
 
 ```php

@@ -29,7 +29,7 @@ final class OrderResource extends Resource
 {
     protected static ?string $model = Order::class;
 
-    protected static string|\BackedEnum|null $navigationIcon = 'heroicon-o-shopping-cart';
+    protected static string|\BackedEnum|null $navigationIcon = \Filament\Support\Icons\Heroicon::OutlinedShoppingCart;
 
     protected static string|\UnitEnum|null $navigationGroup = 'Commerce';
 

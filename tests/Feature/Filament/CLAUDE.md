@@ -33,14 +33,42 @@ tests/Feature/Filament/
 
 ```php
 use App\Models\User;
+use Filament\Actions\Testing\TestAction;
+use Filament\Facades\Filament;
+use Illuminate\Database\Eloquent\Model;
 use function Pest\Livewire\livewire;
 
 uses(Tests\TestCase::class, Illuminate\Foundation\Testing\RefreshDatabase::class);
 
 beforeEach(function () {
+    Filament::setTenant(null);
+    Filament::setCurrentPanel('admin'); // use the registered panel ID under test
     $this->actingAs(User::factory()->admin()->create());
 });
 ```
+
+### Panel, tenant, and lazy-loading context
+
+- **MUST** select the panel explicitly for direct Livewire tests when the target is not the default panel. Verify the panel ID in its provider.
+- **MUST** enable `Model::preventLazyLoading()` in the test bootstrap (or the application's testing configuration) for the N+1 checks below. If enabling it for an individual test, restore its previous setting afterward.
+
+  ```php
+  // tests/Pest.php, with the Eloquent Model imported:
+  Model::preventLazyLoading();
+  ```
+- **MUST** set the tenant before `Filament::bootCurrentPanel()` for tenant-aware tests so resource scopes and model creation listeners are registered. Create a user who belongs to that tenant and passes `canAccessTenant()`.
+
+```php
+// Inside the tenant suite's beforeEach, after authenticating a tenant member:
+$team = Team::factory()->create();
+auth()->user()->teams()->attach($team); // use the app's actual membership relationship
+Filament::setCurrentPanel('admin');
+Filament::setTenant($team);
+Filament::bootCurrentPanel();
+```
+
+- **MUST** reset tenant context between tests and cover another tenant's records being inaccessible. Assert tenant ownership after create, not just that a row exists.
+- **SHOULD** inspect query counts as well: Filament may eager-load relationships automatically, so a missing explicit `with()` does not prove an N+1. Use more than one row in lazy-loading regression tests.
 
 ## Page rendering
 
@@ -74,7 +102,7 @@ it('lists, searches, filters, and renders columns', function () {
 });
 ```
 
-- **MUST** call `assertCanRenderTableColumn(...)` on every column that uses dot-notation (`customer.name`) — catches missing eager-loads that throw under `Model::preventLazyLoading()` in tests.
+- **MUST** call `assertCanRenderTableColumn(...)` on columns that use dot-notation (`customer.name`) to check renderability. Combine render checks with lazy-loading prevention and query-count assertions where N+1 risk exists; renderability alone does not prove query efficiency.
 
 Column visibility:
 
@@ -91,16 +119,16 @@ Bulk action flow:
 
 ```php
 livewire(ListOrders::class)
-    ->selectTableRecords($orders)
-    ->callTableBulkAction('updateStatus', $orders, data: ['status' => 'paid'])
-    ->assertHasNoTableBulkActionErrors();
+    ->selectTableRecords($orders->modelKeys())
+    ->callAction(TestAction::make('updateStatus')->table()->bulk(), data: ['status' => 'paid'])
+    ->assertHasNoActionErrors();
 ```
 
 Row-action redirect:
 
 ```php
 livewire(ListOrders::class)
-    ->callTableAction('edit', $order)
+    ->callAction(TestAction::make('edit')->table($order))
     ->assertRedirect(OrderResource::getUrl('edit', ['record' => $order]));
 ```
 
@@ -268,9 +296,10 @@ it('creates a related item', function () {
         'ownerRecord' => $order,
         'pageClass'   => EditOrder::class,
     ])
-        ->callTableAction('create', data: ['name' => 'Widget', 'quantity' => 1, 'price_cents' => 999]);
+        ->callAction(TestAction::make('create')->table(), data: ['name' => 'Widget', 'quantity' => 1, 'price_cents' => 999])
+        ->assertHasNoActionErrors();
 
-    expect($order->items)->toHaveCount(1);
+    expect($order->fresh()->items)->toHaveCount(1);
 });
 ```
 
