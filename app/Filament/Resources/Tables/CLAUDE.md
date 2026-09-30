@@ -1,7 +1,7 @@
 ---
 description: Reusable Table schema classes (columns, filters, recordActions, toolbarActions)
 paths:
-  - app/Filament/**/Tables/*.php
+  - app/Filament/**/Tables/**/*.php
 ---
 
 # Tables
@@ -35,7 +35,7 @@ final class OrdersTable
                 TextColumn::make('reference')->searchable()->sortable(),
                 TextColumn::make('customer.name')->searchable()->sortable(),
                 TextColumn::make('status')->badge(),
-                TextColumn::make('total_cents')->money()->sortable(),
+                TextColumn::make('total_cents')->money('USD', divideBy: 100)->sortable(),
                 TextColumn::make('created_at')->dateTime()->sortable(),
             ])
             ->filters([

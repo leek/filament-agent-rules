@@ -2,7 +2,7 @@
 
 **Purpose:** standalone pages inside a panel that aren't tied to a single Resource — dashboards, settings, wizards, reports, import/export workflows.
 
-> Resource-bound pages live under `app/Filament/Resources/{Models}/Pages/`. See that directory's CLAUDE.md.
+> Resource-bound pages live under `app/Filament/Resources/{Models}/Pages/`. Read `app/Filament/Resources/Pages/CLAUDE.md` for their rules.
 
 ## Where they live
 
@@ -34,11 +34,11 @@ use Filament\Schemas\Schema;
 
 final class Settings extends Page
 {
-    protected static ?string $navigationIcon = 'heroicon-o-cog-6-tooth';
+    protected static string|\BackedEnum|null $navigationIcon = 'heroicon-o-cog-6-tooth';
 
-    protected static ?string $navigationGroup = 'Admin';
+    protected static string|\UnitEnum|null $navigationGroup = 'Admin';
 
-    protected static string $view = 'filament.pages.settings';
+    protected string $view = 'filament.pages.settings';
 
     public ?array $data = [];
 
@@ -94,7 +94,7 @@ use Filament\Schemas\Schema;
 
 final class ImportProducts extends Page
 {
-    protected static string $view = 'filament.pages.import-products';
+    protected string $view = 'filament.pages.import-products';
 
     public ?array $data = [];
 
@@ -131,7 +131,7 @@ final class ImportProducts extends Page
 
 ## View
 
-`protected static string $view = 'filament.pages.settings';` — the Blade view lives at `resources/views/filament/pages/settings.blade.php`. **MUST** use Filament's page wrapper:
+`protected string $view = 'filament.pages.settings';` — the Blade view lives at `resources/views/filament/pages/settings.blade.php`. **MUST** use Filament's page wrapper:
 
 ```blade
 <x-filament-panels::page>
@@ -164,22 +164,24 @@ If the panel uses tenancy, the page is automatically scoped to the current tenan
 
 ## Polling / live updates
 
-For dashboards that need fresh numbers:
+**PREFER** polling the individual stats/chart widgets that need fresh data; see `app/Filament/Widgets/CLAUDE.md`. A Page has no built-in `$pollingInterval` setting. For page content that must refresh, add Livewire polling to the relevant Blade wrapper:
 
-```php
-protected ?string $pollingInterval = '30s';
+```blade
+<div wire:poll.30s>
+    {{ $this->form }}
+</div>
 ```
 
 - **MUST NOT** poll faster than 10s on production dashboards; each poll re-runs the page's full data fetch.
 
 ## Tabbed dashboard pattern
 
-For dashboard-style pages that swap widget sets without leaving the URL, drive everything from a single `getTabs()` array and a Livewire-bound `$activeTab`:
+For dashboard-style pages that swap widget sets without leaving the URL, use an application-defined `getDashboardTabs()` array and a Livewire-bound `$activeTab`. This is a custom Page pattern, not the Resource List page's built-in `getTabs()` API:
 
 ```php
 final class Analytics extends Page
 {
-    protected static string $view = 'filament.admin.pages.analytics';
+    protected string $view = 'filament.admin.pages.analytics';
 
     public string $activeTab = 'overview';
 
@@ -191,7 +193,7 @@ final class Analytics extends Page
      *   widgets?: array<int, class-string<Widget>>,
      * }>
      */
-    public function getTabs(): array
+    public function getDashboardTabs(): array
     {
         return [
             [
@@ -209,15 +211,39 @@ final class Analytics extends Page
         ];
     }
 
-    public function getActiveTabData(): ?array
+    public function getActiveTabData(): array
     {
-        return collect($this->getTabs())->firstWhere('key', $this->activeTab);
+        $tabs = $this->getDashboardTabs();
+
+        return collect($tabs)->firstWhere('key', $this->activeTab) ?? $tabs[0];
     }
 }
 ```
 
-- **MUST** render the active tab's widgets with `<x-filament-widgets::widgets :widgets="$active['widgets']" />` inside the page wrapper.
+Render the tab controls and widgets in `resources/views/filament/admin/pages/analytics.blade.php`:
+
+```blade
+<x-filament-panels::page>
+    @php($active = $this->getActiveTabData())
+
+    <x-filament::tabs>
+        @foreach ($this->getDashboardTabs() as $tab)
+            <x-filament::tabs.item
+                :active="$active['key'] === $tab['key']"
+                :icon="$tab['icon'] ?? null"
+                wire:click="$set('activeTab', '{{ $tab['key'] }}')"
+            >
+                {{ $tab['title'] }}
+            </x-filament::tabs.item>
+        @endforeach
+    </x-filament::tabs>
+
+    <x-filament-widgets::widgets :widgets="$active['widgets']" />
+</x-filament-panels::page>
+```
+
+- **MUST** return at least one tab from `getDashboardTabs()`.
 - **MUST** fall back to the first tab when `$activeTab` doesn't match any key — otherwise a stale tab key from a session/URL leaves the page blank.
-- **MUST** reference widgets as `::class` strings inside `getTabs()` so Livewire can serialise the array between requests.
+- **MUST** reference widgets as `::class` strings inside `getDashboardTabs()`.
 - **SHOULD** keep tab keys in snake_case and treat them as part of the URL surface — they leak into Livewire query strings.
 - **PREFER** this pattern over multiple sibling `Page` classes when the only difference between "views" is which widgets render — one class, one route, swap widget arrays.

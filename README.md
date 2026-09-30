@@ -1,6 +1,6 @@
 # filament-agent-rules
 
-Directory-scoped agent rules for Filament projects. Each `CLAUDE.md` lives next to the code it governs and mirrors the [filamentphp/filament](https://github.com/filamentphp/filament) panel skeleton — agents pick up the rules for whatever file you're editing.
+Directory-scoped agent rules for Filament projects. The rule tree mirrors the [filamentphp/filament](https://github.com/filamentphp/filament) panel skeleton. The inherited hub routes agents to class-type rules whose skeleton directories are siblings of actual resource code.
 
 Targets the current Filament panel builder APIs: extracted resource `Schemas/` and `Tables/` classes, `Filament\Actions\*`, table `recordActions()` / `toolbarActions()`, action modal `schema()`, `TextColumn::badge()`, and layout components under `Filament\Schemas\Components\*`.
 
@@ -19,7 +19,7 @@ npx apply-agent-rules apply leek/filament-agent-rules
 npx apply-agent-rules apply leek/filament-agent-rules --agents claude,codex
 
 # Pin to a release tag
-npx apply-agent-rules apply leek/filament-agent-rules@v0.14.0 --agents claude
+npx apply-agent-rules apply leek/filament-agent-rules@v0.15.1 --agents claude
 
 # Re-pull later, preserving local edits and pruning removed files
 npx apply-agent-rules update
@@ -36,7 +36,7 @@ Every `CLAUDE.md` in this repo is the canonical source. The installer walks the 
 | `claude`  | `CLAUDE.md`               |
 | `codex`   | `AGENTS.md`               |
 | `gemini`  | `GEMINI.md`               |
-| `cursor`  | `.cursor/rules/*.mdc`     |
+| `cursor`  | `.cursorrules`            |
 | `windsurf`| `.windsurfrules`          |
 | `cline`   | `.clinerules`             |
 
@@ -52,7 +52,7 @@ app/Providers/Filament/AGENTS.md
 ...
 ```
 
-Each agent picks up the rules colocated with the file it's editing — no central rules file, no manual wiring. Subdirectory rules ship as separate files in their own subdirectories, not concatenated into the root.
+Directory-aware agents inherit the hub at `app/Filament/`. Specialized skeleton rules such as `Resources/Tables/AGENTS.md` are **not** ancestors of `Resources/Orders/Tables/OrdersTable.php`. The hub requires agents to read the matching class-type rules explicitly, including for clustered resources and multi-panel layouts. Agents without directory inheritance must load the hub and follow its routing table through their own rule mechanism. Rules remain separate files rather than being concatenated into the root.
 
 ## Optional skills
 
@@ -74,7 +74,7 @@ The skills intentionally do **not** duplicate the full rule content. They route 
 
 ### Path-scoped rules (`.claude/rules/*.md`)
 
-In addition to the per-directory `CLAUDE.md` files, this repo ships a `.claude/rules/` directory that applies the same rules by path match. Filament projects often deviate from the stock layout — domain-grouped resources like `app/Filament/Resources/Shop/Products/Pages/...` or multi-panel layouts like `app/Filament/Admin/Resources/...` won't match a strict per-directory CLAUDE.md, but a path pattern like `app/Filament/**/Pages/*.php` catches them all.
+In addition to the per-directory `CLAUDE.md` files, this repo ships a `.claude/rules/` directory that applies the same rules by path match. These patterns cover resource-specific, domain-grouped, multi-panel, and clustered resource directories. Resource-page patterns require a `Resources/` ancestor to avoid applying lifecycle guidance to standalone panel pages; classify nonstandard page locations by base class through the hub's routing table.
 
 Each `.claude/rules/*.md` is a **symlink** to its canonical `CLAUDE.md`, so the two can never drift — edit the per-directory file and both surfaces update. The path-scoped frontmatter lives at the top of the canonical file itself (Claude Code / agent path matching uses `paths:`):
 
@@ -82,7 +82,7 @@ Each `.claude/rules/*.md` is a **symlink** to its canonical `CLAUDE.md`, so the 
 ---
 description: Resource page classes (lifecycle hooks)
 paths:
-  - app/Filament/**/Pages/*.php
+  - app/Filament/**/Resources/**/Pages/*.php
 ---
 ```
 
@@ -101,7 +101,7 @@ Agents that read `CLAUDE.md` / `AGENTS.md` directly see this frontmatter block a
 | `filament-widgets.md` | `app/Filament/Widgets/CLAUDE.md` |
 | `filament-providers.md` | `app/Providers/Filament/CLAUDE.md` |
 
-The rest (`app/Filament/CLAUDE.md`, `Clusters/`, `Pages/`, `tests/Feature/Filament/`, `resources/css/filament/`) live at fixed paths that don't vary with domain grouping, so the per-directory `CLAUDE.md` already matches and a path rule would be redundant.
+The remaining files are reached through directory inheritance where applicable and the hub's routing table. Custom pages and clusters can live below panel-specific directories; their canonical skeleton rule files are not automatically inherited there.
 
 ## What you get
 
@@ -118,7 +118,7 @@ The rest (`app/Filament/CLAUDE.md`, `Clusters/`, `Pages/`, `tests/Feature/Filame
 | `app/Filament/Widgets/CLAUDE.md`                  | Stats / Chart / Table widgets, polling, lazy loading                       |
 | `app/Filament/Actions/CLAUDE.md`                  | Action plumbing: forms inside actions, modals, bulk, requires-confirmation |
 | `app/Providers/Filament/CLAUDE.md`                | PanelProvider: discovery, middleware, multi-panel, tenancy                 |
-| `resources/css/filament/CLAUDE.md`                | Theme CSS: tokens, vendor override mapping, build step                     |
+| `resources/css/filament/CLAUDE.md`                | Theme CSS: Vite registration, source scanning, tokens, build step          |
 | `tests/Feature/Filament/CLAUDE.md`                | Pest + Livewire tests: pages, forms, tables, actions, authorization        |
 
 ## Companion
@@ -127,7 +127,7 @@ Use alongside [leek/laravel-agent-rules](https://github.com/leek/laravel-agent-r
 
 ## Versioning
 
-Releases are tagged. Pin with `leek/filament-agent-rules@v0.14.0` if you want reproducible installs.
+Releases are tagged. Pin with `leek/filament-agent-rules@v0.15.1` if you want reproducible installs. A pin stays on that release; it does not include changes made afterward.
 
 ## More Filament plugins by Leek
 

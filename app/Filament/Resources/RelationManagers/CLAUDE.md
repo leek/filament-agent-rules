@@ -60,7 +60,7 @@ final class ItemsRelationManager extends RelationManager
             ->columns([
                 TextColumn::make('name'),
                 TextColumn::make('quantity'),
-                TextColumn::make('price_cents')->money(),
+                TextColumn::make('price_cents')->money('USD', divideBy: 100),
             ])
             ->headerActions([CreateAction::make()])
             ->recordActions([

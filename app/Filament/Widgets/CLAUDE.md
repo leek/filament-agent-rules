@@ -88,7 +88,7 @@ final class RevenueChart extends ChartWidget
 ```
 
 - **MUST** use `flowframe/laravel-trend` (or equivalent) for time-series aggregations — never loop dates in PHP.
-- **SHOULD** add `protected static ?string $pollingInterval = '60s';` only on charts that need live data. Otherwise `null` to disable polling.
+- **SHOULD** add `protected ?string $pollingInterval = '60s';` only on charts that need live data. Otherwise `null` to disable polling.
 - **MUST** return a continuous label/data series for chart ranges. If the aggregation helper does not fill date gaps for you, fill missing dates explicitly before returning data so charts do not skip quiet days.
 
 ### Filterable chart widget
@@ -132,7 +132,7 @@ A Blade-backed widget is the **last** resort — see the hub's "Prefer built-in 
 ```php
 final class TasksWidget extends Widget
 {
-    protected static string $view = 'filament.widgets.tasks-widget';
+    protected string $view = 'filament.widgets.tasks-widget';
 
     protected int|string|array $columnSpan = 1;
 
@@ -182,7 +182,7 @@ final class LatestOrders extends TableWidget
             ->columns([
                 TextColumn::make('reference'),
                 TextColumn::make('customer.name'),
-                TextColumn::make('total_cents')->money(),
+                TextColumn::make('total_cents')->money('USD', divideBy: 100),
                 TextColumn::make('created_at')->since(),
             ])
             ->paginated(false);
@@ -215,17 +215,17 @@ protected function getHeaderWidgets(): array
 ## Layout
 
 - `protected int|string|array $columnSpan = 1;` controls dashboard grid width (`1`–`12` or `'full'`).
-- `protected int $sort = 1;` controls display order.
+- `protected static ?int $sort = 1;` controls display order.
 - `protected static bool $isLazy = true;` defers load until visible — **MUST** use for any widget that runs an expensive query.
 
 ## Polling
 
 ```php
-protected static ?string $pollingInterval = '30s';   // or null to disable
+protected ?string $pollingInterval = '30s';   // or null to disable
 ```
 
 - **MUST NOT** poll faster than 10s in production. Each poll re-runs the widget's data fetch across all logged-in admin sessions.
-- **SHOULD** disable polling (`protected static ?string $pollingInterval = null;`) on stats and charts unless the widget genuinely needs live data. Filament's default polling is easy to miss and can create a background request stream from every open dashboard.
+- **SHOULD** disable polling (`protected ?string $pollingInterval = null;`) on stats and charts unless the widget genuinely needs live data. Filament's default polling is easy to miss and can create a background request stream from every open dashboard.
 
 ## Authorization
 

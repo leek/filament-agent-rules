@@ -41,7 +41,7 @@ This creates `app/Filament/Clusters/Commerce.php` and the empty `Commerce/Resour
 ```php
 final class Commerce extends Cluster
 {
-    protected static ?string $navigationIcon = 'heroicon-o-shopping-bag';
+    protected static string|\BackedEnum|null $navigationIcon = 'heroicon-o-shopping-bag';
 
     protected static ?string $navigationLabel = 'Commerce';
 
@@ -63,7 +63,8 @@ final class OrderResource extends Resource
 }
 ```
 
-- **MUST** also physically move the Resource file into `app/Filament/Clusters/Commerce/Resources/` so panel discovery picks it up automatically. Without the move, discovery still finds the class but the URL prefix won't match.
+- **PREFER** organizing related resources under `app/Filament/Clusters/Commerce/Resources/`. The move is organizational; `$cluster` controls membership and the URL prefix regardless of the file's location.
+- **MUST** configure `->discoverClusters(...)`, which also discovers child Resources/Pages in that directory. Children kept elsewhere need resource/page discovery or explicit registration. After moving files, update namespaces and discovery paths; see `app/Providers/Filament/CLAUDE.md`.
 - The cluster URL becomes a prefix: `/admin/commerce/orders` instead of `/admin/orders`.
 
 ## Adding pages to the cluster

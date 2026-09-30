@@ -1,7 +1,7 @@
 ---
 description: Reusable Form and Infolist schema classes (declarative component trees, state callbacks)
 paths:
-  - app/Filament/**/Schemas/*.php
+  - app/Filament/**/Schemas/**/*.php
 ---
 
 # Schemas (Forms + Infolists)
@@ -74,7 +74,7 @@ public static function form(Schema $schema): Schema
 
 ## Rules
 
-- **MUST** extract schemas to their own classes once a resource has >2 sections or >10 fields. Inline schemas inside the Resource bloat the file fast.
+- **MUST** extract resource form and infolist definitions from day one, following `app/Filament/Resources/CLAUDE.md` → "Code Quality — extract everything". Page/action schemas may remain inline when they are small and used once.
 - **MUST** mark every required column from the model as `->required()` on the form — Filament does not infer this from the migration.
 - **MUST** mirror `$casts` in form/infolist component choice: enum cast → `Select::make(...)->options(Status::class)`, datetime cast → `DateTimePicker::make(...)`, JSON cast → `KeyValue::make(...)` or `Repeater::make(...)`.
 - **MUST** use `->dehydrated(false)` on display-only fields that must NOT be saved.
@@ -136,12 +136,22 @@ Grid::make(['default' => 1, 'md' => 2, 'xl' => 12])
     ]);
 ```
 
-### Modals & slide-overs are below `lg` — integer grids silently collapse there
+### Modals & slide-overs — choose viewport or container breakpoints
 
-A modal/slide-over is **narrower than the `lg` breakpoint** (`->modalWidth('3xl')` ≈ 768px; `lg` = 1024px). Because integer `Grid::make(2)` compiles to `['default' => 1, 'lg' => 2]`, **a 2-column grid inside any modal renders as one stacked column** — the multi-column layout never engages at modal widths. This is the #1 cause of "the modal is just a flat list of fields."
+A numeric `Grid::make(2)` activates two columns at the `lg` **viewport** breakpoint. A narrow modal on a wide browser can therefore have two columns. Changing `lg` to `sm` still measures the viewport.
 
-- **MUST** use a responsive array (`Grid::make(['default' => 1, 'sm' => 2])`) for any grid rendered inside an action modal, slide-over, or other sub-`lg` surface. `sm` (640px) fits inside a `3xl` modal; integer `Grid::make(2)` does not.
-- **PREFER** this for *every* infolist/form schema you build for an Action's `->schema(...)` or `->infolist(...)` — assume modal width unless the schema is on a full-width resource page.
+- **MUST** use `->gridContainer()` and container breakpoint keys when columns should depend on the component's available width. Ordinary `sm` / `md` / `lg` keys remain appropriate for viewport-dependent layouts.
+
+```php
+Grid::make(['default' => 1, '@xl' => 2])
+    ->gridContainer()
+    ->schema([
+        TextInput::make('email'),
+        TextInput::make('phone'),
+    ]);
+```
+
+- **SHOULD** check modal layouts in both a narrow container on desktop and a narrow mobile viewport. `@xl` responds to a container width of 576px.
 
 ### Sections, and side-by-side sections
 
@@ -576,7 +586,7 @@ final class OrderInfolist
                     'paid'    => 'success',
                     default   => 'gray',
                 }),
-                TextEntry::make('total_cents')->money(),
+                TextEntry::make('total_cents')->money('USD', divideBy: 100),
             ])->columns(2),
 
             Section::make('Items')->schema([
@@ -584,7 +594,7 @@ final class OrderInfolist
                     ->schema([
                         TextEntry::make('name'),
                         TextEntry::make('quantity'),
-                        TextEntry::make('price_cents')->money(),
+                        TextEntry::make('price_cents')->money('USD', divideBy: 100),
                     ])
                     ->columns(3),
             ]),

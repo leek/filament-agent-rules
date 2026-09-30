@@ -47,77 +47,8 @@ discovery paths, and global defaults.
 
 ## Deep Pattern: Tabbed Dashboard Pages
 
-When a dashboard swaps widget sets without leaving the route, drive the tabs
-from a single array and keep widget references as class strings so Livewire can
-serialize state between requests.
-
-```php
-final class Analytics extends Page
-{
-    protected static string $view = 'filament.admin.pages.analytics';
-
-    public string $activeTab = 'overview';
-
-    public function getTabs(): array
-    {
-        return [
-            [
-                'key' => 'overview',
-                'title' => 'Overview',
-                'icon' => 'heroicon-o-home',
-                'widgets' => [OrdersOverview::class, RevenueChart::class],
-            ],
-            [
-                'key' => 'revenue',
-                'title' => 'Revenue',
-                'icon' => 'heroicon-o-currency-dollar',
-                'widgets' => [RevenueBreakdown::class, TopProducts::class],
-            ],
-        ];
-    }
-
-    public function getActiveTabData(): ?array
-    {
-        return collect($this->getTabs())->firstWhere('key', $this->activeTab);
-    }
-}
-```
-
-Render inside the Filament page wrapper and fall back to the first tab when the
-active key is stale:
-
-```blade
-<x-filament-panels::page>
-    @php
-        $tabs = $this->getTabs();
-        $active = $this->getActiveTabData() ?? $tabs[0];
-    @endphp
-
-    <nav class="-mb-px flex gap-x-8 border-b border-gray-200 dark:border-gray-700">
-        @foreach ($tabs as $tab)
-            <button
-                type="button"
-                wire:click="$set('activeTab', '{{ $tab['key'] }}')"
-                @class([
-                    'flex items-center gap-2 border-b-2 py-4 px-1 text-sm font-medium',
-                    'border-primary-500 text-primary-600' => $activeTab === $tab['key'],
-                    'border-transparent text-gray-500 hover:text-gray-700' => $activeTab !== $tab['key'],
-                ])
-            >
-                @isset($tab['icon'])
-                    <x-filament::icon :icon="$tab['icon']" class="h-5 w-5" />
-                @endisset
-
-                {{ $tab['title'] }}
-            </button>
-        @endforeach
-    </nav>
-
-    @if (! empty($active['widgets']))
-        <x-filament-widgets::widgets :widgets="$active['widgets']" class="mt-6" />
-    @endif
-</x-filament-panels::page>
-```
-
-Prefer this over multiple sibling pages when the only difference is which
-widgets render.
+When a dashboard swaps widget sets without leaving the route, follow
+`app/Filament/Pages/CLAUDE.md` → "Tabbed dashboard pattern". The canonical
+example defines the application-owned tab method, non-static view property,
+fallback tab, Filament tab controls, and widget rendering. Keep polling on
+the widgets that need it, or explicitly add Livewire polling to page markup.

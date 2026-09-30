@@ -12,7 +12,7 @@ paths:
 
 ## Where they live
 
-Filament Actions are usually inline inside the Resource/Page/Widget that uses them. Extract to a reusable class only when the same action ships in 3+ places.
+Filament Actions may remain inline when used once and small. **MUST** extract shared behavior when the same action appears in ≥2 surfaces; see "Reusable across surfaces".
 
 When extracted:
 
@@ -103,7 +103,7 @@ BulkAction::make('archive')
 
 ## Reusable action class
 
-When the same action appears in 3+ places, extract it. Filament generates the scaffolding:
+When the same action appears in ≥2 surfaces, extract it. Create the class with this shape:
 
 ```bash
 php artisan make:filament-action ApproveAction
@@ -248,7 +248,7 @@ Action::make('publish')
     ->icon('heroicon-o-paper-airplane')
     ->iconPosition(IconPosition::After)
     ->color('success')                  // primary | secondary | success | warning | danger | info | gray
-    ->size(ActionSize::Large)           // small | medium | large
+    ->size(\Filament\Support\Enums\Size::Large) // xs | sm | md | lg | xl
     ->button()                          // button | iconButton | link | outlined
     ->keyBindings(['mod+s'])
     ->badge(fn () => Notification::query()->unread()->count())
@@ -261,26 +261,39 @@ Action::make('publish')
 
 ## Notification with follow-up action
 
-Pair a destructive action with an undo button via `Notification::actions`:
+For a reversible mutation, use `Filament\Actions\Action` for notification buttons. Notifications serialize their actions; PHP `->action()` callbacks are not preserved. Dispatch to a mounted Livewire listener instead:
 
 ```php
 ->action(function (Order $record): void {
-    $original = $record->replicate();
     app(ArchiveOrderAction::class)->run($record);
 
     Notification::make()
         ->title('Order archived')
         ->success()
         ->actions([
-            NotificationAction::make('undo')
+            Action::make('undo')
                 ->color('gray')
-                ->action(fn () => app(RestoreOrderAction::class)->run($record)),
+                ->dispatch('restore-order', ['orderId' => $record->getKey()])
+                ->close(),
         ])
         ->send();
 });
 ```
 
-- **MUST** keep the undo window honest — only offer undo when the underlying mutation is genuinely reversible. A fake undo button is worse than no undo.
+On the mounted page/component that owns the action:
+
+```php
+#[\Livewire\Attributes\On('restore-order')]
+public function restoreOrder(int $orderId): void
+{
+    $order = OrderResource::getEloquentQuery()->findOrFail($orderId);
+    $this->authorize('restore', $order);
+    app(RestoreOrderAction::class)->run($order);
+}
+```
+
+- **MUST** resolve the record through the tenant-scoped query and authorize inside the listener; event payloads are user input. If archive uses soft deletion, explicitly include trashed records in that scoped query.
+- **MUST** keep the receiving component mounted for the notification's lifetime and offer undo only while the mutation remains reversible.
 
 ## Header actions vs row actions vs page actions
 

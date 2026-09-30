@@ -1,5 +1,4 @@
 .DS_Store
-/scripts/
 
 # Root-level meta-CLAUDE.md documents how to work on THIS repo.
 # It must stay untracked: the installer walks every tracked CLAUDE.md and

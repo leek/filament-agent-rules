@@ -101,9 +101,14 @@ Notification::make()
     ->title('Order archived')
     ->success()
     ->actions([
-        NotificationAction::make('undo')
+        \Filament\Actions\Action::make('undo')
             ->color('gray')
-            ->action(fn () => app(RestoreOrderAction::class)->run($record)),
+            ->dispatch('restore-order', ['orderId' => $record->getKey()])
+            ->close(),
     ])
     ->send();
 ```
+
+Read `app/Filament/Actions/CLAUDE.md` → "Notification with follow-up action"
+for the required mounted Livewire listener, scoped record lookup, and policy
+check. The notification cannot execute a serialized PHP callback.

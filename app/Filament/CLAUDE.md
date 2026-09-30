@@ -1,6 +1,25 @@
 # Filament Agent Rules
 
-Cross-cutting conventions for the Filament admin layer. Per-class-type rules live in the matching directory's `CLAUDE.md` — read both when editing a file.
+Cross-cutting conventions for the Filament admin layer. **MUST** read the matching class-type rules below before editing a Filament file. These skeleton directories are often siblings of real code, so directory inheritance alone does not load them.
+
+## Rule routing
+
+Resolve these paths from the project root. Use the installed agent filename (`AGENTS.md`, `GEMINI.md`, `.cursorrules`, `.windsurfrules`, or `.clinerules`) in place of `CLAUDE.md` when applicable. Follow this table for stock, multi-panel, domain-grouped, and clustered layouts alike; classify pages by their base class.
+
+| Editing | Read |
+| ------- | ---- |
+| A Resource, including one inside a cluster | `app/Filament/Resources/CLAUDE.md` |
+| A resource-bound page (`ListRecords`, `CreateRecord`, `EditRecord`, `ViewRecord`, or custom resource Page) | `app/Filament/Resources/Pages/CLAUDE.md` |
+| A relation manager | `app/Filament/Resources/RelationManagers/CLAUDE.md` |
+| Forms, infolists, or extracted schema components | `app/Filament/Resources/Schemas/CLAUDE.md` |
+| Tables, extracted columns, or filters | `app/Filament/Resources/Tables/CLAUDE.md` |
+| UI actions | `app/Filament/Actions/CLAUDE.md` |
+| A standalone panel Page or Dashboard | `app/Filament/Pages/CLAUDE.md` |
+| Widgets | `app/Filament/Widgets/CLAUDE.md` |
+| Clusters | `app/Filament/Clusters/CLAUDE.md` |
+| Panel providers | `app/Providers/Filament/CLAUDE.md` |
+| Theme CSS | `resources/css/filament/CLAUDE.md` |
+| Filament tests | `tests/Feature/Filament/CLAUDE.md` |
 
 Targets the current Filament panel builder APIs: extracted resource `Schemas/` and `Tables/` classes, `Filament\Actions\*`, table `recordActions()` / `toolbarActions()`, action modal `schema()`, `TextColumn::badge()`, and layout components under `Filament\Schemas\Components\*`.
 
@@ -39,7 +58,7 @@ A project frequently overrides Filament's defaults **globally** via `configureUs
 Filament auto-discovers Resources/Pages/Widgets configured on the panel via `->discoverResources(...)`, `->discoverPages(...)`, `->discoverWidgets(...)` in the `PanelProvider`.
 
 - **MUST** keep classes inside the configured discovery paths — orphan classes silently fail to register.
-- **MUST NOT** rely on auto-discovery for classes inside `Clusters/` — register the cluster on the resource via `protected static ?string $cluster = MyCluster::class;`.
+- **MUST** configure `->discoverClusters(...)` and declare membership on each child Resource/Page via `protected static ?string $cluster = MyCluster::class;`. Cluster discovery also discovers child Resources/Pages under its directory. Children kept elsewhere need their own resource/page discovery or explicit registration.
 
 ## Filament Actions vs app/Actions
 

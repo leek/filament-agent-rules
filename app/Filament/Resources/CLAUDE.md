@@ -29,9 +29,9 @@ final class OrderResource extends Resource
 {
     protected static ?string $model = Order::class;
 
-    protected static ?string $navigationIcon = 'heroicon-o-shopping-cart';
+    protected static string|\BackedEnum|null $navigationIcon = 'heroicon-o-shopping-cart';
 
-    protected static ?string $navigationGroup = 'Commerce';
+    protected static string|\UnitEnum|null $navigationGroup = 'Commerce';
 
     protected static ?int $navigationSort = 20;
 
@@ -243,7 +243,7 @@ TextInput::make('internal_notes')
 // Default-hidden in the column toggler for density/UX — not a privilege gate.
 // Gate real secrets with ->visible(...) (or omit the column) instead.
 TextColumn::make('cost_cents')
-    ->money()
+    ->money('USD', divideBy: 100)
     ->toggleable(isToggledHiddenByDefault: ! auth()->user()?->isFinance());
 ```
 

@@ -1,22 +1,40 @@
-# Frontend Build
+# Panel Theme CSS
 
-**Always run `npm run build && php artisan filament:assets` after editing any CSS or JS file.** No exceptions.
+**Purpose:** compile and register a custom Filament panel theme through Vite.
 
-# CSS Theme
+## Create and register
 
-- `theme.css` = entry point — see `vite.config.js`
-- Located in `resources/css/filament/*`, each folder = different theme
-- Themes named by panel (e.g. `app` theme for app panel)
+```bash
+php artisan make:filament-theme admin
+```
 
-## Global Style Rule
+The generator creates `resources/css/filament/admin/theme.css` and attempts to configure Vite and the panel provider. **MUST** verify both registrations:
 
-When making global style changes, reach for theme CSS variables (defined in `theme.css` `@theme` block) instead of hardcoded values. Maintains cohesive design system. Add new token to `@theme` first, then reference via `var(--token)` or Tailwind utility.
+- The theme CSS path is in the Laravel Vite plugin's `input` array in `vite.config.js`.
+- The matching PanelProvider calls `->viteTheme('resources/css/filament/admin/theme.css')`.
 
-## Override Mapping
+See `app/Providers/Filament/CLAUDE.md` for panel registration.
 
-CSS files match vendor component paths:
+## Entry point and sources
 
-- `resources/css/filament/app/forms/components/field.css` overrides `vendor/filament/forms/resources/css/components/field.css`
-- `resources/css/filament/app/support/components/section.css` overrides `vendor/filament/support/resources/css/components/section.css`
+**MUST** keep the generated Filament theme import. Add `@source` directives for every directory that contains classes used by the panel; paths are relative to the stylesheet:
 
-Directories (`forms/`, `support/`, `tables/`) mirror respective vendor directories.
+```css
+@import '../../../../vendor/filament/filament/resources/css/theme.css';
+
+@source '../../../../app/Filament/**/*';
+@source '../../../../resources/views/filament/**/*';
+```
+
+- **MUST** include any additional Livewire, Blade component, or domain directory used by the panel in the source scan.
+- **PREFER** built-in component configuration before CSS overrides. Use documented CSS hooks for changes that need CSS.
+- **PREFER** shared theme variables for repeated design values; define a token before referring to it across components.
+- **MUST** import any split CSS files from the theme entry point. Mirroring a vendor directory does not load or override its CSS automatically.
+
+## Build
+
+```bash
+npm run build
+```
+
+**MUST** compile the theme after CSS changes using the project's configured build command, or use its Vite development server while developing. `php artisan filament:assets` publishes registered package assets; it does not compile the Vite theme and is not a required step after a theme CSS edit.

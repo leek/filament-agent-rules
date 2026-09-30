@@ -21,7 +21,7 @@ read the same scoped path using the active agent filename if present:
 - Codex: `AGENTS.md`
 - Claude: `CLAUDE.md`
 - Gemini: `GEMINI.md`
-- Cursor: `.cursor/rules/*.mdc`
+- Cursor (apply-agent-rules installation): `.cursorrules`
 
 If several exist, prefer the file for the agent currently doing the work, then
 fall back to `CLAUDE.md` because that is the canonical authoring filename in
