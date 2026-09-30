@@ -93,9 +93,11 @@ it('lists, searches, filters, and renders columns', function () {
         ->searchTable('INV-001')
         ->assertCanSeeTableRecords([$match])
         ->assertCanNotSeeTableRecords([$miss])
+        ->searchTable('')
         ->filterTable('status', 'pending')
         ->call('applyTableFilters')
         ->assertCanSeeTableRecords([$match])
+        ->assertCanNotSeeTableRecords([$miss])
         ->assertCanRenderTableColumn('reference')
         ->assertCanRenderTableColumn('customer.name')
         ->assertCanRenderTableColumn('total_cents');
@@ -209,7 +211,9 @@ it('bulk-archives selected orders', function () {
     $orders = Order::factory()->count(3)->create();
 
     livewire(ListOrders::class)
-        ->callTableBulkAction('archive', $orders);
+        ->selectTableRecords($orders->modelKeys())
+        ->callAction(TestAction::make('archive')->table()->bulk())
+        ->assertHasNoActionErrors();
 
     foreach ($orders as $order) {
         expect($order->refresh()->archived_at)->not->toBeNull();

@@ -238,7 +238,7 @@ Render the tab controls and widgets in `resources/views/filament/admin/pages/ana
         @endforeach
     </x-filament::tabs>
 
-    <x-filament-widgets::widgets :widgets="$active['widgets']" />
+    <x-filament-widgets::widgets :widgets="$active['widgets'] ?? []" />
 </x-filament-panels::page>
 ```
 

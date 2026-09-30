@@ -22,7 +22,7 @@ npx apply-agent-rules apply leek/filament-agent-rules --agents claude,codex --ex
 npx apply-agent-rules apply leek/filament-agent-rules@v0.15.1 --agents claude --exclude 'scripts/**'
 
 # Re-pull later, preserving local edits and pruning removed files
-npx apply-agent-rules update
+npx apply-agent-rules update --exclude 'scripts/**'
 ```
 
 Supported agents: `claude`, `codex`, `gemini`, `cursor`, `windsurf`, `cline`.
@@ -72,11 +72,13 @@ The current installer copies `.agents/skills/` but skips directory symlinks, so 
 mkdir -p .claude/skills
 for skill_dir in .agents/skills/filament-*; do
     skill_name=${skill_dir##*/}
-    ln -s "../../.agents/skills/$skill_name" ".claude/skills/$skill_name"
+    if [ ! -e ".claude/skills/$skill_name" ] && [ ! -L ".claude/skills/$skill_name" ]; then
+        ln -s "../../.agents/skills/$skill_name" ".claude/skills/$skill_name"
+    fi
 done
 ```
 
-Run this step only for missing links; `ln -s` leaves existing destinations alone.
+Run this step only for missing links; the guard ensures existing links or directories are left untouched.
 
 | Skill | Use for |
 | ----- | ------- |

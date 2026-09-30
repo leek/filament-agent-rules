@@ -43,12 +43,12 @@ final class OrdersOverview extends StatsOverviewWidget
     protected function getStats(): array
     {
         return [
-            Stat::make('Pending', Order::query()->where('status', 'pending')->count())
+            Stat::make('Pending', OrderResource::getEloquentQuery()->where('status', 'pending')->count())
                 ->description('Awaiting approval')
                 ->descriptionIcon(\Filament\Support\Icons\Heroicon::Clock)
                 ->color('warning'),
 
-            Stat::make('Today', Order::query()->whereDate('created_at', today())->count())
+            Stat::make('Today', OrderResource::getEloquentQuery()->whereDate('created_at', today())->count())
                 ->chart([4, 7, 3, 9, 5, 8, 12])
                 ->color('success'),
         ];

@@ -19,12 +19,12 @@ When extracted:
 ```
 app/Filament/Actions/
 ├── ApproveAction.php
-└── ExportCsvAction.php
+└── ExportAction.php
 ```
 
 ## Naming
 
-- **MUST** be `{Verb}Action` when extracted (`ApproveAction`, `ExportCsvAction`, `MergeAction`).
+- **MUST** be `{Verb}Action` when extracted (`ApproveAction`, `ExportAction`, `MergeAction`).
 - Inline action names use the verb in `Action::make('approve')`.
 
 ## Inline shape
@@ -142,19 +142,19 @@ Use one extracted class for shared behavior; keep bulk variants as `BulkAction` 
 protected function getHeaderActions(): array
 {
     return [
-        EmailCustomerAction::make(),
+        EmailAction::make(),
     ];
 }
 
 // On the resource table (per row)
 $table->recordActions([
-    EmailCustomerAction::make(),
+    EmailAction::make(),
 ]);
 ```
 
 - **MUST** extract the moment an action appears in ≥2 surfaces. Inline duplication drifts — the row-action `->visible(...)` and the header-action `->visible(...)` will diverge silently.
 - **MUST** keep `setUp()` free of surface-specific assumptions (e.g. don't assume `$record` exists — header actions don't have one). Branch on `$this->getRecord()` if behaviour must vary.
-- **SHOULD** ship a separate bulk variant (`EmailCustomerAction` + `EmailCustomersBulkAction`) when bulk is meaningful.
+- **SHOULD** ship a separate bulk variant (`EmailAction` + `EmailBulkAction`) when bulk is meaningful.
 
 ## Halting / cancelling
 
@@ -248,7 +248,7 @@ Action::make('publish')
     ->button()                          // button | iconButton | link
     ->outlined()                        // modifier for button presentation
     ->keyBindings(['mod+s'])
-    ->badge(fn () => (string) auth()->user()->unreadNotifications()->count())
+    ->badge(fn () => (string) (auth()->user()?->unreadNotifications()->count() ?? 0))
     ->badgeColor('danger')
     ->tooltip('Publish to all subscribers');
 ```
@@ -283,7 +283,7 @@ On the mounted page/component that owns the action:
 #[\Livewire\Attributes\On('restore-order')]
 public function restoreOrder(int $orderId): void
 {
-    $order = OrderResource::getEloquentQuery()->findOrFail($orderId);
+    $order = OrderResource::getEloquentQuery()->withTrashed()->findOrFail($orderId);
     $this->authorize('restore', $order);
     app(RestoreOrderAction::class)->run($order);
 }
