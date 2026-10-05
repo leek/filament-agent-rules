@@ -352,6 +352,44 @@ Useful slots: `BODY_START`, `BODY_END`, `HEAD_END`, `TOPBAR_END`, `SIDEBAR_NAV_S
 - **SHOULD** enable `->unsavedChangesAlerts()` on admin panels — it prevents the most common "I lost my work" support ticket.
 - **AVOID** `->spa()` on panels that embed external iframes or render large file uploads — SPA mode keeps the old page in memory and can leak DOM nodes.
 
+### SPA mode reaches past the panel
+
+`->spa()` adds `wire:navigate` to **every** Filament-rendered URL on the app's host, not only panel routes. That includes action and notification `->url()`s, auth-page links, and a notification URL that falls back to `url('/')`. A soft navigation keeps the panel's Livewire, Alpine and `document` listeners alive. Landing on a page that ships its own Alpine bundle (a marketing site, a standalone tool) swaps in a second `window.Alpine` without the persist plugin. Its `start()` then fires Filament's `alpine:init` store setup: `window.Alpine.$persist is not a function`, and the sidebar store is gone when the user returns to the panel.
+
+- **MUST** list same-origin URLs outside the panel's Livewire stack in `->spaUrlExceptions()`: public site pages, OAuth redirects, streamed downloads. Patterns are matched with `Str::is()` against the full URL. `*` is the only wildcard, and there is no negation.
+
+```php
+->spa()
+->spaUrlExceptions([
+    url('/'),
+    url('/request-invite'),
+    url('/blog*'),
+    url('/oauth/*'),
+    url('/documents/*/download'),
+])
+```
+
+- **SHOULD** also guard a standalone page's Alpine entry point, because an exception list never covers every URL. Livewire is only present after a soft navigation from a Livewire page, so reload into a clean document instead of booting:
+
+```js
+import Alpine from 'alpinejs'
+
+const arrivedFromLivewirePage = Boolean(window.Livewire)
+
+if (! arrivedFromLivewirePage) {
+    window.Alpine = Alpine
+    // Alpine.data(...) registrations
+}
+
+if (arrivedFromLivewirePage) {
+    window.location.reload()
+} else {
+    Alpine.start()
+}
+```
+
+The guard is only safe on pages that do not load Livewire themselves; otherwise it reloads forever.
+
 ## Production deploy
 
 ```bash
