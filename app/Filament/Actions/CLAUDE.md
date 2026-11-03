@@ -387,3 +387,9 @@ Wire into the table:
 - **SHOULD** enable panel database notifications so the initiating user can see completion feedback. The setup applies to exports too.
 - **MUST** put `resolveRecord()` logic in the Importer, not in `beforeFill` — Filament uses it to decide insert-vs-update per row.
 - **AVOID** wide CSV imports (>30 columns); split into multiple importers per concern (order header vs items vs payments).
+
+## Page actions that resolve their record from arguments
+
+An action hosted on a page (not a table row) that resolves `->record(fn (array $arguments) => Model::find($arguments['id']))` **MUST** also call `->model(Model::class)`. Without it, when the id no longer resolves (deleted, or no longer visible to the user) Filament falls back to the page's own record: a typed `authorize(fn (Invoice $record) ...)` closure throws a `TypeError`, and a stale delete confirmation can delete the page record itself.
+
+With the model pinned the record becomes `null`, so every closure that runs at render or hydrate (`visible`, `hidden`, `disabled`, `authorize`, `tooltip`, headings, `schema`, field `default` / `options`) **MUST** accept a nullable record. An open slide-over rebuilds its schema on every request, polls included. Hidden or disabled actions are never called, so `action()`, `mountUsing()` and `fillForm()` may stay non-nullable. A stock `DeleteAction`'s trashed `hidden()` closure is typed `Model`, so override it on the host: `->hidden(fn (?Invoice $record): bool => $record === null || $record->trashed())`.

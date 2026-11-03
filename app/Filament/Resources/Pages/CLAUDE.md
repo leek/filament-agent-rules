@@ -247,3 +247,9 @@ public static function canAccess(): bool
     return auth()->user()?->can('view-reports') ?? false;
 }
 ```
+
+## Deleting a related record must not redirect to the index
+
+`InteractsWithRecord` redirects after **every** `DeleteAction` via `getDefaultActionSuccessRedirectUrl()`, including one that deleted a related row (a child, an attachment) from a header or section action. **MUST** override it on the page to return `null` for those actions.
+
+**MUST NOT** decide the redirect by inspecting `$action->getRecord()` after the delete: a `->record(fn ...)` closure re-queries, misses the now-trashed row, and falls back to the page record, so the page thinks its own record was deleted. Table `DeleteAction`s on `ManageRelatedRecords` already skip the redirect because the action has a table.

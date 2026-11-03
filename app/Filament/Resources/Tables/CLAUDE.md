@@ -435,3 +435,7 @@ Filament ships a generic empty state (a faded icon + "No records"), but it reads
 - **SHOULD** add `->emptyStateActions([CreateAction::make()])` when the admin can act from here — but gate it on the policy so you don't dangle a button they can't use.
 - **PREFER** distinguishing "never had any" from "filtered to nothing": when the table is filtered, an `emptyStateHeading` like "No orders match these filters" with a description nudging the admin to clear filters beats the generic create prompt. Branch with a closure reading the active filters/`$livewire` if the distinction matters.
 - This rule applies equally to **relation manager** tables and **table widgets** — same `emptyState*` methods, same bar. Use `->emptyStateActions([])` to suppress the default create button on read-only relations.
+
+## Never spread integer-keyed option maps
+
+PHP's spread operator renumbers integer keys. `['__none__' => 'Unassigned', ...$userIdToName]` turns user id 84 into key `0`, so the dropdown shows the right label and the filter matches nobody. **MUST** merge option maps with `+` (`['__none__' => 'Unassigned'] + $userIdToName`) for `SelectFilter`, `Select` and `CheckboxList` options.

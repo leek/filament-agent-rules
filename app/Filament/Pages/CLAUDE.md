@@ -247,3 +247,7 @@ Render the tab controls and widgets in `resources/views/filament/admin/pages/ana
 - **MUST** reference widgets as `::class` strings inside `getDashboardTabs()`.
 - **SHOULD** keep tab keys in snake_case and treat them as part of the URL surface — they leak into Livewire query strings.
 - **PREFER** this pattern over multiple sibling `Page` classes when the only difference between "views" is which widgets render — one class, one route, swap widget arrays.
+
+## A HasTable page that never renders its table needs the modals container
+
+The page layout renders `<x-filament-actions::modals />` only when the page is **not** a `HasTable`; table pages rely on the table view to render it. A page that implements `HasTable` / `InteractsWithTable` but draws a custom view without `{{ $this->table }}` has no modal container: header and page actions mount server-side (the request returns 200, nothing is logged) and no modal ever appears. **MUST** add `<x-filament-actions::modals />` inside such a page's view; it is guarded by `hasActionsModalRendered`, so it is safe.

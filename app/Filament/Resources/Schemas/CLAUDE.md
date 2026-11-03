@@ -699,3 +699,32 @@ ScoreGaugeEntry::make('health_score')->max(100);
 - **MUST** put resource-specific entries in `app/Filament/Resources/{Models}/Schemas/Components/`; generic, model-agnostic entries may live in `app/Filament/Infolists/Components/`.
 - **MUST** keep Blade views under `resources/views/filament/infolists/components/` and namespace resource-specific view files to avoid collisions.
 - **MUST** keep the Blade dumb: compute in `->state(fn ($record) => ...)`, never query inside the view, and use Filament/Tailwind classes with `dark:` variants.
+
+## Select and CheckboxList gotchas
+
+### A relationship Select's `modifyQueryUsing` is also its validation
+
+Filament checks a submitted relationship value with the same query that builds the options (`relationship(modifyQueryUsing: ...)`). When that query no longer returns the record's stored value, two things happen together: the field renders the raw foreign key instead of a label, and every save fails with "The selected <label> is invalid."
+
+- **MUST** keep an edit form's stored value inside every scoping clause. OR the stored id in at the **outermost** level of the selectable group: a nested `->where(fn ($q) => $q->active()->orWhere('id', $storedId))` rescues only the clause it sits in, and sibling `where()`s still AND it away.
+- **MUST** handle soft deletes explicitly. The `SoftDeletes` scope drops a trashed stored row before any `orWhere` runs. Call `->withTrashed()` on the outer query and put `whereNull('deleted_at')` on the offered branch, so a trashed row is reachable only as the stored value.
+- **SHOULD** label a rescued row with why it is no longer offered ("— Removed", "— Expired 03/01/2026"), so the form does not present dead data as current.
+
+```php
+Select::make('plan_id')->relationship('plan', 'name', modifyQueryUsing: fn (Builder $query, ?Model $record) => $query
+    ->withTrashed()
+    ->where(fn (Builder $selectable) => $selectable
+        ->where(fn (Builder $offered) => $offered->whereNull('deleted_at')->active())
+        ->when($record?->plan_id, fn (Builder $q, int $id) => $q->orWhere('id', $id))));
+```
+
+### Disabled options are rejected on save
+
+`disableOptionWhen()` removes the option from the values `in()` validation accepts. A CheckboxList or Select whose state can legitimately contain a disabled option (an option disabled because a sibling "select all" toggle implies it) fails with "The selected <label> is invalid." Override `in()` with the full option keys (`fn (CheckboxList $component) => array_keys($component->getOptions())`) and normalise the submitted state yourself.
+
+### An `->enum()` field's state is an enum instance
+
+A field declared `->enum(Status::class)` holds a `Status` instance in PHP, so `$get('status') === Status::Active->value` is always false and a conditional `required()` or `visible()` never fires on the server. Client-side helpers (`hiddenJs()`, `afterStateUpdatedJs()`) see the raw string, so the browser looks right while server validation silently skips the rule.
+
+- **MUST** compare enum cases, or normalise first: `Status::tryFrom($state instanceof Status ? $state->value : (string) $state) === Status::Active`.
+- **SHOULD** cover a conditional `required()` with a test that submits the dependent state and asserts the error.

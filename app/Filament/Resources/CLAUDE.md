@@ -272,3 +272,7 @@ See `app/Filament/Clusters/CLAUDE.md`.
 If the panel uses tenancy, **MUST** define the model's tenant ownership relationship and configure the resource's ownership relationship when it differs from Filament's convention. Tenant-aware resources are scoped automatically in the active tenant panel; preserve `parent::getEloquentQuery()` when overriding the query.
 
 **MUST** verify isolation for related models and custom queries, especially outside the panel request or when global scopes are removed. See `app/Providers/Filament/CLAUDE.md` → "Tenancy" for the scope boundaries and validation requirements.
+
+## URLs take the model, not the id
+
+**MUST** pass the model to `Resource::getUrl()` / `Page::getUrl()` (`['record' => $invoice->customer]`), never a raw key (`['record' => $invoice->customer_id]`). Filament calls `getRouteKey()`, and a model that overrides `getRouteKeyName()` (a ULID, a slug) binds on that column: a numeric id builds a URL that compiles fine and 404s at runtime. The same applies to `->url(...)` closures on columns and actions, and to tests.

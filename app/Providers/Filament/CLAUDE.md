@@ -400,3 +400,10 @@ php artisan filament:optimize
 - **MUST** run `filament:optimize` in the production deploy pipeline — it caches component discovery and shaves hundreds of ms off the first page-load query.
 - **MUST NOT** run `filament:optimize` in local dev — newly added resources/widgets won't be discovered until the cache is cleared.
 - Pair with `php artisan filament:clear-cached-components` in a `post-update-cmd` Composer hook so devs don't get stuck after pulling new resources.
+
+## Response contracts are bound globally, not per panel
+
+Filament's auth responses (`Filament\Auth\Http\Responses\Contracts\*Response`, such as `LoginResponse` or `EmailChangeVerificationResponse`) are container bindings shared by every panel. A binding that redirects into a page only one panel registers 500s on every other panel, often after the change has already been saved.
+
+- **MUST** branch on the current panel inside one response class (`filament()->getCurrentPanel()?->getId()`) and fall back to Filament's default, rather than binding a panel-specific class globally.
+- **MUST** check whether a package installed for one panel binds a `*Response` contract globally before adding it to a multi-panel app.
