@@ -256,6 +256,34 @@ Custom columns, custom entries, `ViewColumn`/`ViewEntry`, and any `->view(...)` 
 - **Multi-tenancy:** Filament registers tenant global scopes for models with tenant-aware resources in the active panel after tenant identification. **MUST** verify scoping for custom queries, actions, pages, widgets, and related models; add explicit tenant constraints or middleware scopes when automatic scoping does not apply. Jobs and queries outside that panel context need their own tenant context. See `app/Providers/Filament/CLAUDE.md` → "Tenancy".
 - **SHOULD** verify, with tests, that authorization holds at **every** entry point — resource pages, custom pages, actions, bulk actions, inline columns. See `tests/Feature/Filament/CLAUDE.md`.
 
+## Controls that depend on setup
+
+A control whose effect depends on setup the user may not have done yet (business hours, a connected integration, a default assignee, a payer) is a trap if it can be switched on anyway: the user enables it, nothing happens, and they never learn why. Think one step past the control: what does the user hit next, and can the UI take them there?
+
+- **MUST** disable the control, or just its "turn on" direction, while the prerequisite is missing. A control that is already on stays free to turn off, so the user is never stuck with it.
+- **MUST** refuse the same write server-side (`afterStateUpdated`, the action's `action()`); `disabled()` is presentation only.
+- **MUST** name the missing prerequisite next to the control (helper text, hint, tooltip) and link to the exact place it is fixed, with the page URL plus the section's `->id()` as an anchor. Show the link only when the viewer may open that page (`Page::canAccess()`); otherwise name the prerequisite as plain text.
+- **SHOULD** change the copy once the prerequisite exists ("Uses your business hours.", still linked) rather than leaving a warning that is no longer true.
+- **MUST** treat requirement copy you write or review ("needs X", "requires X", "set X first", "only works when X") as a to-do: make the UI enforce the requirement and link to X. Passive copy that leaves the user to find X is not done.
+
+```php
+Toggle::make('after_hours_replies')
+    ->disabled(fn (): bool => ! $this->hasBusinessHours() && ! $this->isOn())
+    ->helperText(fn (): HtmlString => new HtmlString(
+        'Answers texts while the practice is closed. Set your '
+        . '<a href="' . e(ManageLeadSettings::getUrl() . '#business-hours') . '" class="fi-link underline">business hours</a>'
+        . ' to turn this on.'
+    ))
+    ->afterStateUpdated(function (Toggle $component, bool $state): void {
+        if ($state && ! $this->hasBusinessHours()) {
+            $component->state(false); // the boundary, not just the disabled UI
+
+            return;
+        }
+        // …write
+    });
+```
+
 ## Labels & localization
 
 Filament labels — component `->label()`, modal headings, `Notification` titles, enum `getLabel()` — are written **inline** throughout these rules. This is the **one sanctioned exception** to the app-wide "never inline user-facing strings" rule in `laravel-agent-rules` (`app/CLAUDE.md` → "Constants & strings").
