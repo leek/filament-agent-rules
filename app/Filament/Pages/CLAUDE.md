@@ -122,7 +122,7 @@ final class ImportProducts extends Page
     {
         $this->authorize('import', Product::class);
         $data = $this->form->getState();
-        app(ImportProductsAction::class)->run($data['file'], dryRun: $data['dry_run']);
+        app(ImportProductsAction::class)->handle($data['file'], dryRun: $data['dry_run']);
     }
 }
 ```

@@ -69,7 +69,7 @@ final class RevenueChart extends ChartWidget
 
     protected function getData(): array
     {
-        return app(BuildRevenueChartDataAction::class)->run(OrderResource::getEloquentQuery(), 'month');
+        return app(BuildRevenueChartDataAction::class)->handle(OrderResource::getEloquentQuery(), 'month');
     }
 
     protected function getType(): string
@@ -139,7 +139,7 @@ final class RevenueChart extends ChartWidget
 
     protected function getData(): array
     {
-        return app(BuildRevenueChartDataAction::class)->run(OrderResource::getEloquentQuery(), $this->filter);
+        return app(BuildRevenueChartDataAction::class)->handle(OrderResource::getEloquentQuery(), $this->filter);
     }
 
     protected function getType(): string
@@ -243,7 +243,7 @@ protected function getHeaderWidgets(): array
 
 - `protected int|string|array $columnSpan = 1;` controls dashboard grid width (`1`–`12` or `'full'`).
 - `protected static ?int $sort = 1;` controls display order.
-- `protected static bool $isLazy = true;` defers load until visible — **MUST** use for any widget that runs an expensive query.
+- `protected static ?bool $isLazyLoaded = true;` defers load until visible — **MUST** use for any widget that runs an expensive query.
 
 ## Polling
 
@@ -267,5 +267,5 @@ public static function canView(): bool
 
 - **MUST** delegate non-trivial calculation to an `app/Actions/` class — widgets are presentational.
 - **MUST** cache or pre-compute any aggregate that scans >10k rows.
-- **SHOULD** use `$isLazy = true` for any widget that hits the DB; the dashboard renders the skeleton immediately and loads each widget independently.
+- **SHOULD** use `$isLazyLoaded = true` for any widget that hits the DB; the dashboard renders the skeleton immediately and loads each widget independently.
 - **AVOID** raw SQL in widgets — wrap a query object or trend helper instead.

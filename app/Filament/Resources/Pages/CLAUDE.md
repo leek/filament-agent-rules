@@ -54,7 +54,7 @@ protected function mutateFormDataBeforeSave(array $data): array
 
 protected function afterCreate(): void
 {
-    app(NotifyCustomerOrderCreatedAction::class)->run($this->record);
+    app(NotifyCustomerOrderCreatedAction::class)->handle($this->record);
 }
 
 protected function afterSave(): void
@@ -153,7 +153,7 @@ final class TicketSidebar extends Component
             return;
         }
 
-        app(TransitionTicketStatusAction::class)->run($record, $next);   // audit write, timestamps, persist
+        app(TransitionTicketStatusAction::class)->handle($record, $next);   // audit write, timestamps, persist
         $this->record = $record->refresh();
 
         Notification::make()->success()->title("Status updated to {$next->getLabel()}")->send();
@@ -174,7 +174,7 @@ final class TicketSidebar extends Component
 - **MUST** delegate the actual mutation to an `app/Actions/` class (`TransitionTicketStatusAction`) — the Livewire component is a UI boundary, exactly like a Filament Action. Transition rules, audit-trail writes, and `resolved_at`/`closed_at` stamping belong in the Action, not the component.
 - **SHOULD** refresh via a dispatched event + `#[On(...)]` listener so the embedded component re-reads after the form saves (`afterSave()` → `$this->dispatch('ticket-sidebar-refresh')`).
 - **MUST** back status/badge rendering with `HasColor`/`HasLabel` enums so the sidebar and the resource table share one source of truth (hub → "Enums for status / type / category").
-- **SHOULD** add `->key('...')` when embedding multiple instances of the same component, and `->lazy()` for an expensive component so the page paints first.
+- **SHOULD** add `->key('...')` when embedding multiple instances of the same component, and `->lazyLoaded()` for an expensive component so the page paints first.
 - The component's own Blade view is still subject to the hub's Blade ladder — use `<x-filament::section>`, `<x-filament::button>`, and Filament/Tailwind classes (with `dark:` variants) so it matches the panel; reserve hand-rolled markup for the genuinely bespoke part.
 
 ## Redirect after save
@@ -214,7 +214,7 @@ protected function getHeaderActions(): array
     return [
         Actions\CreateAction::make(),
         Actions\Action::make('export')
-            ->action(fn () => app(ExportOrdersAction::class)->run())
+            ->action(fn () => app(ExportOrdersAction::class)->handle())
             ->color('gray'),
     ];
 }

@@ -275,7 +275,7 @@ Filter::make('created_at')
         ->color('success')
         ->requiresConfirmation()
         ->visible(fn (Order $record) => $record->status === 'pending')
-        ->action(fn (Order $record) => app(ApproveOrderAction::class)->run($record)),
+        ->action(fn (Order $record) => app(ApproveOrderAction::class)->handle($record)),
 ])
 ```
 
@@ -301,7 +301,7 @@ Use table headers for table-scoped operations, such as importing into this table
                 ->disk('local')
                 ->visibility('private'),
         ])
-        ->action(fn (array $data) => app(ImportOrdersAction::class)->run($data['file'])),
+        ->action(fn (array $data) => app(ImportOrdersAction::class)->handle($data['file'])),
 ])
 ```
 
@@ -332,7 +332,7 @@ ImageColumn::make('logo')->defaultImageUrl(asset('placeholder.svg')); // fallbac
             ->schema([
                 Textarea::make('reason')->required(),
             ])
-            ->action(fn (Collection $records) => app(ArchiveOrdersAction::class)->run($records)),
+            ->action(fn (Collection $records) => app(ArchiveOrdersAction::class)->handle($records)),
     ]),
 ])
 
@@ -342,7 +342,7 @@ ImageColumn::make('logo')->defaultImageUrl(asset('placeholder.svg')); // fallbac
     BulkAction::make('archive')
         ->requiresConfirmation()
         ->authorizeIndividualRecords('archive')
-        ->action(fn (Collection $records) => app(ArchiveOrdersAction::class)->run($records)),
+        ->action(fn (Collection $records) => app(ArchiveOrdersAction::class)->handle($records)),
 ])
 ```
 

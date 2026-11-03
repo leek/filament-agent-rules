@@ -41,7 +41,7 @@ Action::make('approve')
     ->modalDescription(fn (Order $record) => "Approve order #{$record->reference}?")
     ->modalIcon(Heroicon::OutlinedCheckCircle)
     ->modalIconColor('success')
-    ->action(fn (Order $record) => app(ApproveOrderAction::class)->run($record))
+    ->action(fn (Order $record) => app(ApproveOrderAction::class)->handle($record))
     ->after(fn () => Notification::make()->success()->title('Approved')->send());
 ```
 
@@ -49,7 +49,7 @@ Action::make('approve')
 
 - **MUST** call `->requiresConfirmation()` on any destructive or irreversible action.
 - **MUST** set `->modalIcon(...)` + `->modalIconColor(...)` on modal/slide-over actions unless the project already does this globally via `configureUsing`. Use intent colors: `danger`, `success`, `warning`, `primary`.
-- **MUST** delegate work via `->action(fn ($record) => app(SomeAction::class)->run($record))` — never write the business logic inline. Filament Actions are presentational glue.
+- **MUST** delegate work via `->action(fn ($record) => app(SomeAction::class)->handle($record))` — never write the business logic inline. Filament Actions are presentational glue.
 - **MUST** authorize custom actions with `->authorize('ability')` or an authorization callback. Visibility controls presentation; it does not replace an execution-time authorization check. Filament supplies a record-bound action's record to the policy automatically.
 - **SHOULD** pair every long-running action with a `Notification` in `->after(...)` so the admin gets explicit success/failure feedback.
 - **AVOID** chaining `->action()` AND `->schema()` AND `->after()` with heavy logic — extract to a dedicated class once you cross ~15 lines.
@@ -79,7 +79,7 @@ Action::make('reject')
         Textarea::make('reason')->required()->minLength(10),
     ])
     ->action(function (Order $record, array $data): void {
-        app(RejectOrderAction::class)->run($record, reason: $data['reason']);
+        app(RejectOrderAction::class)->handle($record, reason: $data['reason']);
     });
 ```
 
@@ -94,7 +94,7 @@ BulkAction::make('archive')
     ->authorizeIndividualRecords('archive')
     ->deselectRecordsAfterCompletion()
     ->action(function (Collection $records): void {
-        $records->each(fn (Order $order) => app(ArchiveOrderAction::class)->run($order));
+        $records->each(fn (Order $order) => app(ArchiveOrderAction::class)->handle($order));
     });
 ```
 
@@ -123,7 +123,7 @@ final class ApproveAction extends Action
             ->icon(\Filament\Support\Icons\Heroicon::OutlinedCheck)
             ->color('success')
             ->requiresConfirmation()
-            ->action(fn (Order $record) => app(ApproveOrderAction::class)->run($record));
+            ->action(fn (Order $record) => app(ApproveOrderAction::class)->handle($record));
     }
 }
 ```
@@ -166,7 +166,7 @@ Inside an `->action(...)` callback, inject the Action instance and bail out with
         Notification::make()->danger()->title('Order is locked')->send();
         $action->halt();
     }
-    app(ApproveOrderAction::class)->run($record);
+    app(ApproveOrderAction::class)->handle($record);
 });
 ```
 
@@ -230,7 +230,7 @@ Action::make('createOrder')
             Select::make('shipping_method')->options(['standard' => 'Standard', 'express' => 'Express']),
         ]),
     ])
-    ->action(fn (array $data) => app(CreateOrderAction::class)->run($data));
+    ->action(fn (array $data) => app(CreateOrderAction::class)->handle($data));
 ```
 
 - **MUST** validate inside each `Wizard\Step` — Filament blocks "Next" until the step's fields pass.
@@ -262,7 +262,7 @@ For a reversible mutation, use `Filament\Actions\Action` for notification button
 
 ```php
 ->action(function (Order $record): void {
-    app(ArchiveOrderAction::class)->run($record);
+    app(ArchiveOrderAction::class)->handle($record);
 
     Notification::make()
         ->title('Order archived')
@@ -285,7 +285,7 @@ public function restoreOrder(int $orderId): void
 {
     $order = OrderResource::getEloquentQuery()->withTrashed()->findOrFail($orderId);
     $this->authorize('restore', $order);
-    app(RestoreOrderAction::class)->run($order);
+    app(RestoreOrderAction::class)->handle($order);
 }
 ```
 
@@ -319,7 +319,7 @@ Or for fully custom:
 ```php
 ->action(function (Order $record): void {
     try {
-        app(ApproveOrderAction::class)->run($record);
+        app(ApproveOrderAction::class)->handle($record);
         Notification::make()->success()->title('Approved')->send();
     } catch (DomainException $e) {
         Notification::make()->danger()->title('Failed')->body($e->getMessage())->send();

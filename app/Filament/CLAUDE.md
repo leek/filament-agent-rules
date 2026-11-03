@@ -64,14 +64,14 @@ Filament auto-discovers Resources/Pages/Widgets configured on the panel via `->d
 
 These are different concepts. Don't conflate them:
 
-- **`app/Actions/{Verb}{Noun}Action.php`** — business-logic Actions (from `laravel-agent-rules`). Pure PHP class with one `run()` method.
+- **`app/Actions/{Verb}{Noun}Action.php`** — business-logic Actions (from `laravel-agent-rules`). Pure PHP class with one `handle()` method.
 - **`Filament\Actions\Action`** — UI Action that renders a button/modal in a Resource/Page/Widget. Configured via fluent builder.
 
 A Filament Action should **delegate** to a business Action for any non-trivial work:
 
 ```php
 Action::make('approve')
-    ->action(fn (Order $record) => app(ApproveOrderAction::class)->run($record));
+    ->action(fn (Order $record) => app(ApproveOrderAction::class)->handle($record));
 ```
 
 ## Configuration over inheritance
@@ -332,7 +332,7 @@ Enable on the `PanelProvider`:
 ->databaseTransaction()
 ->action(function (Order $record, \Filament\Actions\Action $action): void {
     try {
-        app(ApproveOrderAction::class)->run($record);
+        app(ApproveOrderAction::class)->handle($record);
         Notification::make()->title('Approved')->success()->send();
     } catch (DomainException $e) {
         Notification::make()
