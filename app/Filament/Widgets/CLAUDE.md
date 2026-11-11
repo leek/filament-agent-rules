@@ -58,6 +58,7 @@ final class OrdersOverview extends StatsOverviewWidget
 
 - **MUST** cache stat queries that hit large tables. Stats run on **every** dashboard load.
 - **SHOULD** cache counts on tables >100k rows. **MUST** include panel, tenant, and any user/permission context in the key, and preserve tenant scoping in the cached query; see `app/Filament/Resources/CLAUDE.md` → "Navigation badges".
+- **MUST** also key a cached reading on every page or table filter that changes it, hashed into one segment. A filter left out of the key shows the unfiltered numbers until the entry expires. Add the new filter to the key in the same change that adds the filter.
 - **SHOULD** format large stat values with `Number::abbreviate(..., precision: 1)` when raw counts stop being scan-friendly (`7.5B`, `202.7K` beats `7457147561`).
 
 ## Chart widget

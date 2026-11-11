@@ -85,6 +85,7 @@ Action::make('reject')
 
 - **MUST** validate via the `->schema([...])` definition rather than re-validating inside `->action(...)`. Filament rejects the modal submit on validation failure.
 - **MUST** configure modal input with `->schema([...])`, not `->form([...])`.
+- **MUST** add `x-on:keydown.enter.prevent` to a plain text or search input rendered inside the modal (a custom Blade field, a picker's filter box). The modal is one `<form>`, so Enter in that input runs the modal's submit action: a search keystroke sends the email. See `app/Filament/Pages/CLAUDE.md` for the same trap in a page form.
 
 ## Bulk actions
 

@@ -78,6 +78,7 @@ public static function form(Schema $schema): Schema
 - **MUST** provide the related model's integer `sort` column before using the relationship repeater example's `->orderColumn('sort')`. UI reordering alone does not persist relationship order.
 - **MUST** extract resource form and infolist definitions from day one, following `app/Filament/Resources/CLAUDE.md` → "Code Quality — extract everything". Page/action schemas may remain inline when they are small and used once.
 - **MUST** mark every required column from the model as `->required()` on the form — Filament does not infer this from the migration.
+- **MUST** handle the database's unique violation as well as declaring `->unique()`. The rule only checks before the write, so a double submit or a concurrent save passes validation twice and the second write throws `Illuminate\Database\UniqueConstraintViolationException`: a 500. Catch it where the record is written, send a `->persistent()` danger notification that names the conflict, and throw `Filament\Support\Exceptions\Halt` so the form stays open.
 - **MUST** mirror `$casts` in form/infolist component choice: enum cast → `Select::make(...)->options(Status::class)`, datetime cast → `DateTimePicker::make(...)`, JSON cast → `KeyValue::make(...)` or `Repeater::make(...)`.
 - **MUST** use `->dehydrated(false)` on display-only fields that must NOT be saved.
 - **SHOULD** group related fields into `Section::make('...')` blocks and lay them out on a grid — see "Layout" below. A flat list of full-width fields is a failed layout.
@@ -194,6 +195,7 @@ Beyond mirroring `$casts` (see Rules), pick the component that makes invalid inp
 - **MUST** use `Textarea` (not `TextInput`) for multi-line content — descriptions, bios, notes, reasons, excerpts. A single-line input for a paragraph hides what the admin typed.
 - **MUST** add `->columnSpanFull()` to every `Textarea` and `RichEditor` — squeezed into a half-width grid column they're unusable (see "Layout").
 - **MUST** give a `ToggleButtons` field `->required()` when its column is `NOT NULL`, or make the column nullable. Clicking the selected option a second time deselects it and sets the state to `null`, so an optional field over a `NOT NULL` column saves as a database error, not a validation message. A default value does not prevent this.
+- **MUST** validate decimal places on a numeric field whose column has a fixed scale: `->rule('decimal:0,2')` for a `decimal(12, 2)` column. `->numeric()` accepts `22.125`, and the database rounds it to `22.13` without an error.
 
 ### Guidance text — only where it earns its place
 
@@ -499,6 +501,7 @@ TextInput::make('tax_id')
 - Reach for the PHP `->visible(fn (Get $get) => ...)` instead only when the condition needs the server (a DB lookup, auth, a PHP enum) — then mark the dependency `->live()`.
 - A field hidden in PHP (`->visible(false)` / `->hidden()`, or inside a hidden parent) is skipped by both validation and `getState()`: its value is not saved. **MUST** add `->dehydratedWhenHidden()` when the value has to survive a save while the field is hidden.
 - **MUST** make that field's rules conditional on its visibility once it has `->dehydratedWhenHidden()`. The flag turns validation back on as well, so the save can fail on a field the user cannot see, with no visible error.
+- **MUST NOT** add `->dehydratedWhenHidden()` to a field whose stored value should stay as it is while the field is hidden. The flag saves whatever state the hidden field holds, so an empty state overwrites the stored value. Test it: hide the field, save, and assert the column is unchanged.
 
 ## Wizards
 
