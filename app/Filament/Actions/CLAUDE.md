@@ -255,6 +255,7 @@ Action::make('publish')
 
 - **MUST** use `->iconButton()` for row-level repetitive actions; full-button labels in every row wreck table density.
 - **AVOID** `->keyBindings([...])` outside power-user surfaces — keyboard shortcuts on customer-facing panels conflict with browser/OS bindings.
+- **MUST NOT** give the same `->keyBindings()` shortcut to two actions that can be in the DOM together (two tabs, two embedded Livewire components). Shortcuts are bound page-wide, not per tab, so the hidden tab's action fires too.
 
 ## Notification with follow-up action
 

@@ -193,6 +193,7 @@ Beyond mirroring `$casts` (see Rules), pick the component that makes invalid inp
 - **MUST** use `DatePicker` / `DateTimePicker` (not `TextInput`) for temporal values, and `Toggle` / `Checkbox` for booleans.
 - **MUST** use `Textarea` (not `TextInput`) for multi-line content — descriptions, bios, notes, reasons, excerpts. A single-line input for a paragraph hides what the admin typed.
 - **MUST** add `->columnSpanFull()` to every `Textarea` and `RichEditor` — squeezed into a half-width grid column they're unusable (see "Layout").
+- **MUST** give a `ToggleButtons` field `->required()` when its column is `NOT NULL`, or make the column nullable. Clicking the selected option a second time deselects it and sets the state to `null`, so an optional field over a `NOT NULL` column saves as a database error, not a validation message. A default value does not prevent this.
 
 ### Guidance text — only where it earns its place
 
@@ -496,6 +497,8 @@ TextInput::make('tax_id')
 
 - **MUST** also gate `->dehydrated(fn ...)` (PHP) when a hidden field must not be persisted — a crafted Livewire request can still submit a value the UI hid. Client-side visibility is presentational, **not** a security boundary.
 - Reach for the PHP `->visible(fn (Get $get) => ...)` instead only when the condition needs the server (a DB lookup, auth, a PHP enum) — then mark the dependency `->live()`.
+- A field hidden in PHP (`->visible(false)` / `->hidden()`, or inside a hidden parent) is skipped by both validation and `getState()`: its value is not saved. **MUST** add `->dehydratedWhenHidden()` when the value has to survive a save while the field is hidden.
+- **MUST** make that field's rules conditional on its visibility once it has `->dehydratedWhenHidden()`. The flag turns validation back on as well, so the save can fail on a field the user cannot see, with no visible error.
 
 ## Wizards
 

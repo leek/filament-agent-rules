@@ -219,6 +219,7 @@ All live in `Filament\Support\Contracts\*`. Implement only the ones an enum need
 - **MUST** rely on Laravel Policies for record-level authorization. Filament auto-resolves `{Model}Policy` for `viewAny`, `view`, `create`, `update`, `delete`, `restore`, `forceDelete`.
 - **MUST NOT** inline `auth()->user()->isAdmin()` checks inside Resource methods — funnel through the policy.
 - For panel-level access, implement `FilamentUser::canAccessPanel(Panel $panel)` on the `User` model.
+- **MUST** override `get{View,Edit,Delete,…}AuthorizationResponse()` (returning `Response::allow()` / `Response::deny()`) when a Resource decides an ability itself instead of through the policy. Overriding only `canView()` / `canEdit()` changes what the UI offers, but the View and Edit pages and the built-in actions authorize through the `…AuthorizationResponse()` method, so the route still answers 403. The stock `can*()` methods already delegate to it, so one override covers both.
 
 ## Security
 
