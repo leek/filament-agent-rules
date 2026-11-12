@@ -231,6 +231,26 @@ Validation *rules* (not just messages — see "Custom validation messages") prev
       ->disk('s3');
   ```
 
+### Custom upload fields — honour the form contract
+
+**PREFER** the stock `FileUpload`. A hand-built field that calls `$wire.upload()` inherits none of its behaviour: the form can be submitted while the file is still in flight, and the record saves without its attachment. Filament's submit buttons (`<x-filament::button type="submit" form="...">`, and any action configured with `->submit(...)`) disable themselves between two DOM events on their closest `<form>` and keep a counter, so the events must balance. A hand-rolled Save button that is not one of these listens to nothing: make it one.
+
+- **MUST** dispatch `form-processing-started` on `$el.closest('form')` when the first upload starts, with `detail: { message }` (the button reads `event.detail.message`, so a missing `detail` throws), and `form-processing-finished` when the last one ends.
+- **MUST** dispatch the finish on **every** exit: success, error, cancel, and the component's `destroy()`. A missed finish leaves Save disabled until reload; a missed start lets the form save early.
+- **MUST** pass the error and cancel callbacks, `$wire.upload(name, file, finish, error, progress, cancel)`, and show the failure to the user. Livewire reports a failed upload only through that callback and a validation error keyed by `name`.
+
+  ```js
+  const form = this.$el.closest('form')
+  const done = () => form?.dispatchEvent(new CustomEvent('form-processing-finished'))
+
+  form?.dispatchEvent(new CustomEvent('form-processing-started', { detail: { message: 'Uploading…' } }))
+  this.$wire.upload(path, file, done, () => { done(); this.error = 'Upload failed.' }, () => {}, done)
+  ```
+
+- **MUST** dispatch `upload:errored` to the component itself before refusing a file in an overridden `_startUpload()` (`$this->dispatch('upload:errored', name: $name)->self()`). Livewire's upload queue releases an entry only on `upload:finished` or `upload:errored`, so a refused file otherwise blocks every later upload to that property until reload.
+- **MUST** still validate a required attachment on the server. The submit guard is browser-side only.
+- The host component also needs `RestrictsFileUploadsToSchemaComponents`; see `app/Filament/CLAUDE.md` → "Custom FileUpload & custom queries".
+
 ### Consistency for codes and toggles
 
 - **SHOULD** enforce casing on codes that are uppercase by convention (VIN, currency code, plate): `->dehydrateStateUsing(fn ($s) => strtoupper($s))` for storage, plus `->extraInputAttributes(['style' => 'text-transform:uppercase'])` for live feedback.
@@ -253,6 +273,8 @@ Select::make('customer_id')
 ```
 
 **MUST** call `->preload()` only on small relations (<200 rows). For larger sets, leave the async search behavior.
+
+**MUST**, before narrowing any Select or CheckboxList option query, read "Select and CheckboxList gotchas" at the end of this file: the option query is also the validation, so it has to keep the record's stored value and match what the save path accepts.
 
 ## Per-component extraction — `Schemas/Components/`
 
@@ -404,6 +426,22 @@ TextInput::make('subtotal_cents')
 
 - **MUST** call `->live(onBlur: true)` on the trigger field (not `->live()`) for text inputs — every keystroke otherwise round-trips to the server.
 - **AVOID** chaining `->formatStateUsing()` + `->dehydrateStateUsing()` to silently transform values — admins editing a record see one value, save a different one. Use it for unit conversion (cents ↔ dollars) only when documented.
+
+### `Get` / `Set` paths are relative to the component's container
+
+`$get('x')` and `$set('x', ...)` resolve `x` against the state path of the **schema the calling component sits in**, not the form root and not the component's own state path. A path that matches no component does not fail: `$get` falls back to `data_get()` on the Livewire component and returns `null`, and `$set` writes the value to that stray path. A wrong path therefore reads as "empty" and the condition silently never fires.
+
+| Calling component is in | `$get('qty')` reads | To reach a field beside the container |
+| ----------------------- | ------------------- | ------------------------------------- |
+| the top-level schema | `data.qty` | already there |
+| a `Repeater` item (`data.items.{key}`) | the sibling in the same row | `$get('../../currency')` |
+| a `Builder` block (`data.blocks.{key}.data`) | the sibling in the same block | `$get('../../../currency')` |
+| a layout component with its own `statePath('address')` | `data.address.qty` | `$get('../currency')` |
+
+- Each `../` drops one segment of the container's path (item key, then the repeater's name). Count segments rather than guessing.
+- A leading `/` (or `isAbsolute: true`) makes the path absolute from the Livewire component, so it must include the schema's `statePath`: `$get('/data.currency')`.
+- A component that has its own `statePath` and reads **its own child** is the usual trap: `$get('child')` on the parent looks beside the parent. Prefix the parent's own path, `$get('address.child')`.
+- **MUST** cover a nested `$get` with a test that sets the outer field and asserts the dependent behaviour; a wrong path is invisible when reading the code.
 
 ## Reactivity & rendering — keep `live()` cheap
 
@@ -715,6 +753,7 @@ Filament checks a submitted relationship value with the same query that builds t
 - **MUST** keep an edit form's stored value inside every scoping clause. OR the stored id in at the **outermost** level of the selectable group: a nested `->where(fn ($q) => $q->active()->orWhere('id', $storedId))` rescues only the clause it sits in, and sibling `where()`s still AND it away.
 - **MUST** handle soft deletes explicitly. The `SoftDeletes` scope drops a trashed stored row before any `orWhere` runs. Call `->withTrashed()` on the outer query and put `whereNull('deleted_at')` on the offered branch, so a trashed row is reachable only as the stored value.
 - **SHOULD** label a rescued row with why it is no longer offered ("— Removed", "— Expired 03/01/2026"), so the form does not present dead data as current.
+- The same holds for `->options(fn ...)` and custom search Selects, which validate against the options or the label resolver: **MUST** add the record's stored value back as an option (or resolve its label) whenever you narrow the list, and migrate stored values before removing or renaming a static option key. Otherwise saving an unrelated field fails on a value the user never touched.
 
 ```php
 Select::make('plan_id')->relationship('plan', 'name', modifyQueryUsing: fn (Builder $query, ?Model $record) => $query
@@ -723,6 +762,23 @@ Select::make('plan_id')->relationship('plan', 'name', modifyQueryUsing: fn (Buil
         ->where(fn (Builder $offered) => $offered->whereNull('deleted_at')->active())
         ->when($record?->plan_id, fn (Builder $q, int $id) => $q->orWhere('id', $id))));
 ```
+
+### The offered options and the accepted values are one eligibility query
+
+A picker has three readers of "which records are eligible": the option list, the validation of the submitted value, and the business Action that saves it. Written separately they drift, in both directions: the picker lists records the save path rejects (users of the wrong kind, a failure the user cannot explain), or it lists and accepts records the user may not view.
+
+- **MUST** define eligibility once, as a model scope or query class that includes tenant, the viewer's `view` access and the business rule, and consume it in all three places. Do not restate the predicate in the form.
+- A relationship Select does this for you: `modifyQueryUsing` drives options, search and validation. For a custom search Select, validation is **not** the search query. Filament accepts any submitted value for which `getOptionLabelUsing()` (`getOptionLabelsUsing()` when multiple) returns a label, so an unscoped `Model::find($value)?->name` accepts any id the client sends. **MUST** resolve labels through the same scoped query as `getSearchResultsUsing()`.
+
+  ```php
+  Select::make('reviewer_id')
+      ->getSearchResultsUsing(fn (string $search): array => User::query()->eligibleReviewers()
+          ->where('name', 'like', "%{$search}%")->limit(50)->pluck('name', 'id')->all())
+      ->getOptionLabelUsing(fn ($value): ?string => User::query()->eligibleReviewers()->find($value)?->name);
+  ```
+
+- **MUST** search the columns the option label displays. A picker labelled by name that searches a key or code finds nothing the user types.
+- Keeping a stored value that is no longer eligible is the one sanctioned exception; see "A relationship Select's `modifyQueryUsing` is also its validation" above.
 
 ### Disabled options are rejected on save
 

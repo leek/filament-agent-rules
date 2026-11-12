@@ -50,7 +50,7 @@ Action::make('approve')
 - **MUST** call `->requiresConfirmation()` on any destructive or irreversible action.
 - **MUST** set `->modalIcon(...)` + `->modalIconColor(...)` on modal/slide-over actions unless the project already does this globally via `configureUsing`. Use intent colors: `danger`, `success`, `warning`, `primary`.
 - **MUST** delegate work via `->action(fn ($record) => app(SomeAction::class)->handle($record))` — never write the business logic inline. Filament Actions are presentational glue.
-- **MUST** authorize custom actions with `->authorize('ability')` or an authorization callback. Visibility controls presentation; it does not replace an execution-time authorization check. Filament supplies a record-bound action's record to the policy automatically.
+- **MUST** authorize every custom action with `->authorize('ability')` or an authorization callback, wherever it is declared: an extracted `Action` subclass, `getHeaderActions()`, a relation manager's table, a schema component. Filament supplies a record-bound action's record to the policy automatically. See "Authorization" for what Filament does and does not check for you.
 - **SHOULD** pair every long-running action with a `Notification` in `->after(...)` so the admin gets explicit success/failure feedback.
 - **AVOID** chaining `->action()` AND `->schema()` AND `->after()` with heavy logic — extract to a dedicated class once you cross ~15 lines.
 - **SHOULD** write every action/button `->label(...)` in **Title Case** — capitalize each major word ("Request Documents", "Mark Verified", "Convert to Client"); lowercase only interior articles / short conjunctions / short prepositions (a, an, the, and, or, but, of, to, in, for). Applies to row, header, and bulk actions and any clickable label. When the panel is localized, pass `__('...')` instead and apply Title Case to the translation value — see `app/Filament/CLAUDE.md` → "Labels & localization".
@@ -63,11 +63,23 @@ Action::make('refund')
     ->action(...);
 ```
 
-Additional presentation-only visibility:
+What Filament checks for you, and what it does not:
 
-```php
-->visible(fn (Order $record) => auth()->user()?->can('refund', $record) ?? false)
-```
+- A resource page or relation manager supplies a policy check only for the stock CRUD classes (`CreateAction`, `EditAction`, `ViewAction`, `DeleteAction`, `ReplicateAction`, `RestoreAction`, `ForceDeleteAction` and the delete/restore bulk actions). Everything else, including your own class that `extends Action` and happens to create or edit a record, is **allowed by default** for anyone who can load the page, so a view-only user can run it. A standalone page or plain Livewire component supplies no default at all, even for the stock classes.
+- Filament refuses to mount or call an action that is hidden, disabled or unauthorized, but only by the conditions declared **on that action**. A button hidden in Blade, a condition on a sibling action, or the gate of the page it was first built for protects nothing once the action is mounted somewhere else.
+
+So:
+
+- **MUST** put `->authorize(...)` inside `setUp()` of an extracted action, so the check travels to every page, table and relation manager that mounts it. An action reachable from a second, weaker-gated page is the usual hole.
+- **MUST** put state preconditions on the action too, not only the permission. If the policy does not know the record is closed or converted, add it to the authorization callback (or `->visible()` on the same action):
+
+  ```php
+  ->authorize(fn (Order $record): bool => $record->isOpen()
+      && (auth()->user()?->can('refund', $record) ?? false))
+  ```
+
+- **MUST** check the destination's ability when the action redirects after success (create, then open the edit page): gate the action on it, or redirect users who lack it somewhere they may go.
+- **MUST** require the `view` ability of every model an action lists, previews or lets the user pick, not only the ability on the record it is attached to. A picker opened from an order that lists documents needs the document `view` check before it opens.
 
 ## Form inside an action (modal form)
 
@@ -123,6 +135,7 @@ final class ApproveAction extends Action
             ->label('Approve')
             ->icon(\Filament\Support\Icons\Heroicon::OutlinedCheck)
             ->color('success')
+            ->authorize('approve') // travels with the class to every surface
             ->requiresConfirmation()
             ->action(fn (Order $record) => app(ApproveOrderAction::class)->handle($record));
     }

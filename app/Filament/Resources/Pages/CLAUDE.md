@@ -171,11 +171,39 @@ final class TicketSidebar extends Component
 
 - **MUST** pass the record as a prop (`['record' => $this->getRecord()]`) — Livewire serializes the model reference and rehydrates it each request. Only serializable data crosses into an embedded component; it can't reach the parent page's live form state.
 - **MUST** re-resolve records through the tenant-scoped Resource query and authorize inside every callable mutation/listener. Parent-page access does not authorize an embedded component's operations; use the application's specific transition ability when it differs from `update`.
+- **MUST** apply the same rule to a standalone Livewire component rendered in a panel (`@livewire(...)` in a page view, a modal's content, a widget's child). See "Authorize every request, not only `mount()`" below.
 - **MUST** delegate the actual mutation to an `app/Actions/` class (`TransitionTicketStatusAction`) — the Livewire component is a UI boundary, exactly like a Filament Action. Transition rules, audit-trail writes, and `resolved_at`/`closed_at` stamping belong in the Action, not the component.
 - **SHOULD** refresh via a dispatched event + `#[On(...)]` listener so the embedded component re-reads after the form saves (`afterSave()` → `$this->dispatch('ticket-sidebar-refresh')`).
 - **MUST** back status/badge rendering with `HasColor`/`HasLabel` enums so the sidebar and the resource table share one source of truth (hub → "Enums for status / type / category").
 - **SHOULD** add `->key('...')` when embedding multiple instances of the same component, and `->lazyLoaded()` for an expensive component so the page paints first.
 - The component's own Blade view is still subject to the hub's Blade ladder — use `<x-filament::section>`, `<x-filament::button>`, and Filament/Tailwind classes (with `dark:` variants) so it matches the panel; reserve hand-rolled markup for the genuinely bespoke part.
+
+### Authorize every request, not only `mount()`
+
+Livewire runs `mount()` once, on the first render. Every later request (a `wire:click`, `$refresh`, a poll, an event listener, a property update) skips it and runs `hydrate()` instead. A check that lives only in `mount()` therefore protects the first paint and nothing after: a user whose access is revoked, or whose record is archived, keeps reading and acting through the open component. Filament's own `EditRecord` / `ViewRecord` call `authorizeAccess()` from both `mount()` and `hydrate()`; do the same in anything you write, embedded or standalone, page or component.
+
+```php
+public function mount(Ticket $record): void
+{
+    $this->record = $record;
+    $this->authorizeAccess();
+}
+
+public function hydrate(): void
+{
+    $this->authorizeAccess();
+}
+
+protected function authorizeAccess(): void
+{
+    Gate::authorize('view', $this->record);
+}
+```
+
+- **MUST** authorize in `mount()` **and** `hydrate()` for read access, and again inside each mutating method with the ability that mutation needs.
+- **MUST** treat every public property as client-writable. Mark identifiers and scope keys `#[Locked]` (`Livewire\Attributes\Locked`), or re-resolve them through the scoped query and authorize the result. A `#[Computed]` method that queries by `$this->orderId` returns whatever id the browser sent.
+- `unset($this->rows)` clears a `#[Computed]` cache, but a computed that derives from a stored public property rebuilds the same stale value. When a refresh event replaces the underlying record, reset the stored property as well.
+- **MUST NOT** make an embedded component's `mount()` stricter than the page that embeds it, or an otherwise authorized page 403s as a whole. Render the component conditionally instead (`->visible(...)` on `Livewire::make()`, or `@if` in the view).
 
 ## Redirect after save
 
@@ -185,6 +213,8 @@ protected function getRedirectUrl(): string
     return $this->getResource()::getUrl('index');
 }
 ```
+
+- **MUST** redirect only to a page the resource registers; see `app/Filament/Resources/CLAUDE.md` → "A page URL needs a registered page".
 
 - **SHOULD** override on Create to land on the Edit or View page rather than the List, when admins typically continue editing.
 
@@ -214,11 +244,14 @@ protected function getHeaderActions(): array
     return [
         Actions\CreateAction::make(),
         Actions\Action::make('export')
+            ->authorize('export', Order::class)   // a read ability, not create/update
             ->action(fn () => app(ExportOrdersAction::class)->handle())
             ->color('gray'),
     ];
 }
 ```
+
+- **MUST** call `->authorize(...)` on every custom header action. The page's own gate (`viewAny`, `update`) is not the action's ability, and only the stock CRUD action classes get a policy check for free. See `app/Filament/Actions/CLAUDE.md` → "Authorization".
 
 ## Tabs on ListRecords
 

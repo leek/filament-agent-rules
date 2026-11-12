@@ -123,6 +123,20 @@ Custom Blade skips Filament theming, dark mode, spacing, and state handling. Bef
 - **MUST**, when you do reach rung 6, wrap the markup in Filament's wrappers (`<x-filament::section>`, `<x-filament-widgets::widget>`, `<x-filament-panels::page>`) so theming and dark mode still apply.
 - **PREFER** extracting a reusable custom **component class** (rung 5) over copying a Blade partial — it composes with a schema like any other component.
 
+### When you do write Blade
+
+- **MUST** put `wire:click` / `x-on:click` / `@click` on a `<button type="button">` (or `<x-filament::button>`, or an `<a href>` for navigation). A `<div>`, `<span>` or `<tr>` takes no keyboard focus, so the control is mouse-only. If the element truly cannot be a button, it needs all three of `role="button"`, `tabindex="0"` and a key handler (`x-on:keydown.enter` + `x-on:keydown.space.prevent`).
+- **MUST NOT** read `$loop` in a partial that opens its own `@foreach` to mean the including loop: inside the inner loop `$loop->index` is the inner index. Capture the outer value first and pass it in.
+
+  ```blade
+  @foreach ($steps as $step)
+      @include('filament.partials.step-menu', ['position' => $loop->index])
+  @endforeach
+  ```
+
+- **MUST** give every `x-sortable-item` an `x-sortable-handle`, on the item itself or on an element inside it. Filament's `x-sortable` directive starts a drag only from `[x-sortable-handle]`, so a list without one cannot be reordered at all. When the row holds buttons, links or inputs, put the handle on a dedicated grip rather than the row, or every click on a control starts a drag.
+- A hand-built upload control must honour the form contract in `app/Filament/Resources/Schemas/CLAUDE.md` → "Custom upload fields".
+
 ## Prefer embedding a Livewire component over a custom page
 
 The ladder above is about a single component. The same instinct applies one level up, at the **page**: when a page needs something Filament can't build out of the box, the wrong move is to throw away the standard Resource page and hand-build a fully custom Livewire page. Almost always **only one or two pieces are actually custom** — a real-time sidebar, a bespoke chart, a non-standard widget. Build *those* as Livewire components and embed them; keep everything else (form, table, relation managers, save pipeline, validation, authorization, notifications) that Filament gives you.
@@ -236,9 +250,24 @@ Filament does **not** lean on Eloquent's `$fillable`/`$guarded` for the form sav
 
 Filament auto-checks model policies only for **standard CRUD**. Anything you add — custom actions, custom pages, custom Livewire components, inline-editable columns, API endpoints — **is not authorized automatically.**
 
-- **MUST** authorize custom surfaces yourself with `->authorize(...)` / `->visible(...)` / `->hidden(...)`, page `canAccess()`, or an explicit policy call — they are never applied for you. See "Authorization" above, plus the per-surface notes (Tables → bulk actions + inline columns, Actions → `authorize`, Pages → `canAccess`).
+- **MUST** authorize custom surfaces yourself: `->authorize(...)` on an action, `canAccess()` on a page, an explicit policy call in a Livewire method — they are never applied for you. See "Authorization" above, plus the per-surface notes (Tables → bulk actions + inline columns, Actions → `authorize`, Pages → `canAccess`).
+- **Hidden is not authorized.** A condition hides or blocks only the object it is declared on. Hiding the trigger (a Blade `@if`, a sibling action, another page's button) leaves the action, Livewire method or route callable by anyone who can load the component. **MUST** put the permission **and** any state precondition ("only while the order is open") on the thing that executes. See `app/Filament/Actions/CLAUDE.md` → "Authorization".
+- **MUST** gate a link or redirect to another record or page on the **target's** own check, and render plain text (or redirect elsewhere) when it fails. Access to the current page says nothing about the target, so the link 403s. Use `OrderResource::canView($order)` / `canEdit($order)`, a resource page's `EditOrder::canAccess(['record' => $order])`, a standalone page's `canAccess()`, or a relation manager's `canViewForRecord($ownerRecord, $pageClass)` before linking to `?relation=...`.
+
+  ```php
+  ->url(fn (Invoice $record): ?string => OrderResource::canView($record->order)
+      ? OrderResource::getUrl('view', ['record' => $record->order])
+      : null)
+  ```
+
 - **MUST** run authorization **before** side effects. Don't do work that shouldn't happen for an unauthorized user in `boot()` or per-property hydrate hooks — those can fire *before* the policy abort. Put the side effect inside the authorized action/method.
+- **MUST** authorize a custom Livewire component or page on every request, not only in `mount()`, which runs once. See `app/Filament/Resources/Pages/CLAUDE.md` → "Authorize every request, not only `mount()`".
 - Inline columns (`ToggleColumn`/`SelectColumn`/`TextInputColumn`) check only `->disabled()`, never the policy — `->disabled(fn ($record) => ! auth()->user()->can('update', $record))` (already required in Tables).
+
+### One record, every surface
+
+- **MUST** gate a read-only export, download or preview on a read ability (`view`, `export`), never on `create` / `update` / `import`. A user or tenant limited to read access must still be able to export, and a write ability hands the data to people who were only meant to edit it.
+- **MUST** apply a masking, redaction or row-visibility rule in one shared query or DTO builder that every view of the data consumes: table, infolist, calendar, preview, CSV/PDF export, notification. A rule added to the table alone leaks through the sibling. When you add one, list every surface that renders the same record and cover each with a test as the restricted viewer.
 
 ### Never render unsanitized user content (XSS)
 

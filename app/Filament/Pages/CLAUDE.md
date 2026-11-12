@@ -156,9 +156,16 @@ protected function getHeaderActions(): array
     return [
         Action::make('reload')
             ->action(fn () => $this->mount()),
+        Action::make('purgeCache')
+            ->authorize('purge-cache')
+            ->requiresConfirmation()
+            ->action(fn () => app(PurgeCacheAction::class)->handle()),
     ];
 }
 ```
+
+- **MUST** call `->authorize(...)` on every header action that changes or exposes data. A standalone page has no policy and gives its actions no default check, so `canAccess()` is the only gate unless the action carries its own. See `app/Filament/Actions/CLAUDE.md` → "Authorization".
+- Filament re-runs `canAccess()` on every Livewire request. A record-level check you add in `mount()` runs once: repeat it in `hydrate()`. See `app/Filament/Resources/Pages/CLAUDE.md` → "Authorize every request, not only `mount()`".
 
 ## Tenancy
 

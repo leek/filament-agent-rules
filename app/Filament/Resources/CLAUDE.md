@@ -276,3 +276,17 @@ If the panel uses tenancy, **MUST** define the model's tenant ownership relation
 ## URLs take the model, not the id
 
 **MUST** pass the model to `Resource::getUrl()` / `Page::getUrl()` (`['record' => $invoice->customer]`), never a raw key (`['record' => $invoice->customer_id]`). Filament calls `getRouteKey()`, and a model that overrides `getRouteKeyName()` (a ULID, a slug) binds on that column: a numeric id builds a URL that compiles fine and 404s at runtime. The same applies to `->url(...)` closures on columns and actions, and to tests.
+
+## A page URL needs a registered page
+
+`Resource::getUrl('view', ...)` builds the route name from the string and throws `RouteNotFoundException` when the resource's `getPages()` has no such key. A resource that opens records in a modal registers only `index`; the mistake is usually made from far away (a notification, a mail, a link on another resource) and surfaces at runtime.
+
+- **MUST** read the target resource's `getPages()` before hard-coding `'view'` or `'edit'`. Where the target varies or may change, ask it with `Resource::hasPage($name)` and fall back to a page that exists:
+
+  ```php
+  $url = OrderResource::hasPage('view')
+      ? OrderResource::getUrl('view', ['record' => $order])
+      : OrderResource::getUrl('index');
+  ```
+
+- **MUST** also check that the viewer may open the target; see `app/Filament/CLAUDE.md` → "Authorize everything custom".

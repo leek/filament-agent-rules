@@ -179,6 +179,18 @@ it('updates an order', function () {
 
 - **MUST** assert `assertHasNoFormErrors()` on every successful save — without it, validation failures hide as silent no-ops.
 - **MUST** verify edit-page `unique` validation with a test that saves the current record unchanged and rejects a duplicate from another record. Only add `ignoreRecord: true` in the schema when the field is not already model-bound in a way Filament can infer.
+- **MUST**, for every Select or CheckboxList whose options are filtered (active only, same tenant, eligible role), test an edit where the stored value is no longer offered: save an unrelated field and assert no errors. Then assert the ineligible record cannot be newly chosen on another record.
+
+  ```php
+  it('saves an order whose plan was retired', function () {
+      $order = Order::factory()->for(Plan::factory()->retired())->create();
+
+      livewire(EditOrder::class, ['record' => $order->getRouteKey()])
+          ->fillForm(['reference' => 'INV-NEW'])
+          ->call('save')
+          ->assertHasNoFormErrors();
+  });
+  ```
 
 ## Action assertions
 
@@ -240,7 +252,7 @@ livewire(EditOrder::class, ['record' => $order->getRouteKey()])
 
 ## Authorization
 
-Two test shapes — **MUST** cover both:
+Three test shapes — **MUST** cover all three:
 
 ```php
 it('forbids non-admins from the list page', function () {
@@ -256,10 +268,23 @@ it('hides the destroy action when policy denies', function () {
     livewire(EditOrder::class, ['record' => $order->getRouteKey()])
         ->assertActionHidden('delete');
 });
+
+it('refuses a refund from a user who may not refund', function () {
+    $order = Order::factory()->paid()->create();
+    $this->actingAs(User::factory()->reader()->create());
+
+    livewire(EditOrder::class, ['record' => $order->getRouteKey()])
+        ->mountAction('refund')          // what a crafted request does; skips the visibility assertion
+        ->assertActionNotMounted();
+
+    expect($order->refresh()->refunded_at)->toBeNull();
+});
 ```
 
 - **MUST** test page-level forbid with `assertForbidden()` (not 403 status — Filament returns the page with a forbidden Livewire response).
 - **MUST** test action-level visibility with `assertActionHidden()` rather than only the underlying policy — visibility wiring is a frequent regression.
+- **MUST** also test that every custom action is **refused**, not merely hidden, for a user who lacks the ability and for a record in a state that forbids it. `callAction()` asserts the action is visible first, so it cannot prove this: use `mountAction()` (with `TestAction::make('refund')->table($order)` for a row action), then assert nothing mounted and the database is unchanged. For a custom Livewire method, call it directly with `->call('method')` and `assertForbidden()`. A test that only asserts "hidden" passes when the button is hidden in Blade and the action is wide open.
+- **MUST** run the refusal test on **each** page or relation manager that mounts a shared action class, as the weakest persona that can open that page.
 
 ## Widget tests
 
@@ -321,7 +346,8 @@ For every Resource, **MUST** cover:
 - [ ] Create with invalid data surfaces form errors
 - [ ] Edit hydrates from record
 - [ ] Edit save persists
-- [ ] Every custom action (visibility + happy path)
+- [ ] Every custom action (visibility + happy path + refused without the ability)
+- [ ] Every filtered Select / CheckboxList: edit saves with a stored value that is no longer offered
 - [ ] Page-level forbid for unauthorized user
 
 ## Rules
