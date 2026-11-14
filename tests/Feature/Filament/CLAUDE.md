@@ -82,12 +82,14 @@ it('renders the list page', function () {
 ## Table assertions
 
 ```php
-it('lists, searches, filters, and renders columns', function () {
+it('lists, sorts, searches, filters, and renders columns', function () {
     $match = Order::factory()->create(['reference' => 'INV-001', 'status' => 'pending']);
     $miss = Order::factory()->create(['reference' => 'INV-999', 'status' => 'paid']);
 
     livewire(ListOrders::class)
         ->assertCanSeeTableRecords([$match, $miss])
+        ->sortTable('reference', 'desc')
+        ->assertCanSeeTableRecords([$miss, $match], inOrder: true)
         ->searchTable('INV-001')
         ->assertCanSeeTableRecords([$match])
         ->assertCanNotSeeTableRecords([$miss])
@@ -193,7 +195,7 @@ it('updates an order', function () {
 ## Action assertions
 
 ```php
-it('publishes a draft', function () {
+it('approves a pending order', function () {
     $order = Order::factory()->create(['status' => 'pending']);
 
     livewire(EditOrder::class, ['record' => $order->getRouteKey()])

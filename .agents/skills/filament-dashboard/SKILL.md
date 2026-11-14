@@ -11,7 +11,9 @@ bespoke Blade-heavy pages.
 
 ## Read First
 
-Resolve paths from the current project root:
+Resolve paths from the current project root. Where the rules were installed for
+another agent, the same paths end in `AGENTS.md`, `GEMINI.md`, `.cursorrules`,
+`.windsurfrules` or `.clinerules` instead of `CLAUDE.md`:
 
 1. `app/Filament/CLAUDE.md`
 2. `app/Filament/Pages/CLAUDE.md`

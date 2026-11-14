@@ -23,7 +23,7 @@ app/Filament/Resources/Orders/
 ## Naming
 
 - **MUST** be `{Relation}RelationManager` — `Relation` matches the parent model's relation method name in **StudlyCase** (`items()` → `ItemsRelationManager`, `paymentMethods()` → `PaymentMethodsRelationManager`).
-- **MAY** name the class after the display concept rather than the literal relation method when the concept reads clearer to an admin. Filament binds to `$relationship` (**not** the class name), which **MUST** still name the parent relation method exactly.
+- Exception: the class can be named after the display concept rather than the literal relation method when the concept reads clearer to an admin. Filament binds to `$relationship` (**not** the class name), which **MUST** still name the parent relation method exactly.
 
 ## Create
 

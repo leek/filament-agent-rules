@@ -56,8 +56,8 @@ final class OrdersOverview extends StatsOverviewWidget
 }
 ```
 
-- **MUST** cache stat queries that hit large tables. Stats run on **every** dashboard load.
-- **SHOULD** cache counts on tables >100k rows. **MUST** include panel, tenant, and any user/permission context in the key, and preserve tenant scoping in the cached query; see `app/Filament/Resources/CLAUDE.md` → "Navigation badges".
+- **MUST** cache stat queries that scan >10k rows. Stats run on **every** dashboard load.
+- **MUST** include panel, tenant, and any user/permission context in the key, and preserve tenant scoping in the cached query; see `app/Filament/Resources/CLAUDE.md` → "Navigation badges".
 - **MUST** also key a cached reading on every page or table filter that changes it, hashed into one segment. A filter left out of the key shows the unfiltered numbers until the entry expires. Add a new filter to the key in the change that adds it.
 - **SHOULD** format large stat values with `Number::abbreviate(..., precision: 1)` when raw counts stop being scan-friendly (`7.5B`, `202.7K` beats `7457147561`).
 
@@ -89,7 +89,7 @@ use Illuminate\Database\Eloquent\Builder;
 
 final class BuildRevenueChartDataAction
 {
-    public function run(Builder $orders, ?string $range = 'month'): array
+    public function handle(Builder $orders, ?string $range = 'month'): array
     {
         $start = match ($range) {
             'today' => today(),
@@ -133,8 +133,8 @@ final class RevenueChart extends ChartWidget
         return [
             'today' => 'Today',
             'week'  => 'Last 7 days',
-            'month' => 'This month',
-            'year'  => 'This year',
+            'month' => 'Last 30 days',
+            'year'  => 'Last 12 months',
         ];
     }
 

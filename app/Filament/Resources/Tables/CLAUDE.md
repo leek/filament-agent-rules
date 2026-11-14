@@ -262,6 +262,7 @@ Filter::make('created_at')
 ```
 
 - **MUST** index columns referenced in filters — they run as part of the index query.
+- Filters open in a dropdown by default. To show them above the table, pass a layout as the second argument: `->filters([...], layout: FiltersLayout::AboveContent)` (`Filament\Tables\Enums\FiltersLayout`).
 - **MUST** add `->indicateUsing(...)` to custom filters with form state so admins can see why records disappeared and clear individual fields from the active-filter chips.
 
 ## Row actions
@@ -274,7 +275,7 @@ Filter::make('created_at')
         ->icon(Heroicon::Check)
         ->color('success')
         ->requiresConfirmation()
-        ->visible(fn (Order $record) => $record->status === 'pending')
+        ->visible(fn (Order $record) => $record->status === OrderStatus::Pending)
         ->action(fn (Order $record) => app(ApproveOrderAction::class)->handle($record)),
 ])
 ```

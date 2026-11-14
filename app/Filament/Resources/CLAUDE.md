@@ -205,21 +205,26 @@ public static function shouldRegisterNavigation(): bool
 
 ### Static `can*` overrides
 
-When a check depends on Resource-level context (not just the model), override the static `can*` methods instead of pushing the logic into the policy:
+When a check depends on Resource-level context (not just the model), override the matching `get…AuthorizationResponse()` method instead of pushing the logic into the policy. The stock `can*()` methods and the pages both read it:
 
 ```php
-public static function canCreate(): bool
+public static function getCreateAuthorizationResponse(): Response
 {
-    return Feature::active('new-orders') && auth()->user()?->can('create', Order::class);
+    return Feature::active('new-orders')
+        ? parent::getCreateAuthorizationResponse()
+        : Response::deny('New orders are switched off.');
 }
 
-public static function canEdit(Model $record): bool
+public static function getEditAuthorizationResponse(Model $record): Response
 {
-    return ! $record->isLocked() && auth()->user()?->can('update', $record);
+    return $record->isLocked()
+        ? Response::deny('Order is locked while payment is pending.')
+        : parent::getEditAuthorizationResponse($record);
 }
 ```
 
-- **MUST** still call the policy from inside these overrides — keep the policy as the single source of truth for per-record rules.
+- **MUST NOT** add the restriction by overriding only `canCreate()` / `canEdit()`. That hides the button, but the Create and Edit pages authorize through `get…AuthorizationResponse()`, so the URL still opens and saves. See `app/Filament/CLAUDE.md` → "Authorization".
+- **MUST** still call the policy from inside these overrides (`parent::get…AuthorizationResponse()`) — keep the policy as the single source of truth for per-record rules.
 - **PREFER** putting time-window or feature-flag checks here rather than in the policy (the policy stays pure record-vs-user).
 
 ### `Response::deny()` with a reason

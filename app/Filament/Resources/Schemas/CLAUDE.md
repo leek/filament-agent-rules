@@ -615,7 +615,7 @@ Callout::make('This order is locked')          // first arg is the HEADING
 - `make($heading)` takes the **heading**; `->description(...)` is the body. (It's not `->title()`.)
 - Status methods `->success()` / `->warning()` / `->danger()` / `->info()` set color + default icon in one call; use `->color('primary')` / `->color(null)` for finer control.
 - **SHOULD** add `->columnSpanFull()` so the callout spans the form width instead of sitting in one grid column.
-- **MAY** attach `->actions([Action::make('fix')->button()])` for a follow-up, and gate the whole callout with `->visible(fn ($record) => ...)` to show it only when relevant.
+- A callout can carry `->actions([Action::make('fix')->button()])` for a follow-up; gate the whole callout with `->visible(fn ($record) => ...)` to show it only when relevant.
 - To extract a reusable, record-aware callout, return a configured `Callout` from a component class's `make(): Callout` (closures for heading/visibility) — same wrap-don't-subclass rule as other components.
 
 ## Infolist
