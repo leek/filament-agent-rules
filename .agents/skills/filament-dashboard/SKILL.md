@@ -5,9 +5,9 @@ description: Use this skill whenever creating, editing, reviewing, or debugging 
 
 # Filament Dashboard And Page Workflow
 
-Use this skill for dashboards and custom panel pages. Prefer composing existing
-Filament widgets, schema components, and embedded Livewire components before
-building bespoke Blade-heavy pages.
+For dashboards and custom panel pages. Prefer composing existing Filament
+widgets, schema components, and embedded Livewire components before building
+bespoke Blade-heavy pages.
 
 ## Read First
 
@@ -25,9 +25,8 @@ discovery paths, and global defaults.
 
 ## Build Flow
 
-1. Decide whether the request is really a dashboard page. If the standard panel
-   dashboard plus widgets is enough, register widgets instead of creating a
-   page.
+1. If the standard panel dashboard plus widgets is enough, register widgets
+   instead of creating a page.
 2. If a custom page is needed, keep standard Filament page behavior and compose
    custom content through schema components, widgets, or embedded Livewire.
 3. Use tabs, sections, grids, callouts, and prime components for layout and

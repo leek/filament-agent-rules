@@ -5,8 +5,8 @@ description: Use this skill whenever creating, editing, reviewing, or debugging 
 
 # Filament Form Workflow
 
-Use this skill for form schemas in resources, actions, pages, widgets, or
-embedded schema components.
+For form schemas in resources, actions, pages, widgets, or embedded schema
+components.
 
 ## Read First
 
@@ -15,9 +15,8 @@ Resolve paths from the current project root:
 1. `app/Filament/CLAUDE.md`
 2. `app/Filament/Resources/Schemas/CLAUDE.md`
 3. `app/Providers/Filament/CLAUDE.md`
-4. If the form lives inside an action, also read
-   `app/Filament/Actions/CLAUDE.md`.
-5. If tests are expected, read `tests/Feature/Filament/CLAUDE.md`.
+4. `app/Filament/Actions/CLAUDE.md` when the form lives inside an action
+5. `tests/Feature/Filament/CLAUDE.md` when tests are expected
 
 Inspect the model casts, migrations, relationships, validation rules, existing
 global `configureUsing()` defaults, and any current form layout in nearby

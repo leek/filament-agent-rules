@@ -5,9 +5,8 @@ description: Use this skill whenever creating, editing, reviewing, or debugging 
 
 # Filament Resource Workflow
 
-Use this skill for complete resource work. A resource change usually touches
-the resource class plus extracted schema, table, page, relation, action, and
-test files.
+For complete resource work. A resource change usually touches the resource
+class plus extracted schema, table, page, relation, action, and test files.
 
 ## Read First
 
@@ -17,7 +16,7 @@ where installed:
 1. `app/Filament/CLAUDE.md`
 2. `app/Filament/Resources/CLAUDE.md`
 3. `app/Providers/Filament/CLAUDE.md`
-4. Then read whichever resource surface applies:
+4. Whichever resource surface applies:
    - `app/Filament/Resources/Schemas/CLAUDE.md`
    - `app/Filament/Resources/Tables/CLAUDE.md`
    - `app/Filament/Resources/Pages/CLAUDE.md`
@@ -31,8 +30,8 @@ paths.
 
 ## Build Flow
 
-1. Use the project's existing resource layout and artisan generators when they
-   are available.
+1. Use the project's existing resource layout and artisan generators when
+   available.
 2. Keep the resource class thin. Extract forms to `Schemas/`, tables to
    `Tables/`, and page behavior to `Pages/`.
 3. Bind the model, record title, navigation metadata, global search behavior,

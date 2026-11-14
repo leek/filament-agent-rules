@@ -1,6 +1,6 @@
 # Clusters
 
-**Purpose:** group multiple related Resources (and optionally Pages) under one sidebar item with its own sub-navigation. Use when a panel has 10+ resources and the sidebar starts to crowd.
+**Purpose:** group related Resources (and optionally Pages) under one sidebar item with its own sub-navigation. Use when a panel has 10+ resources and the sidebar starts to crowd.
 
 > **Filament's domain axis.** A cluster adds business-domain grouping (`Commerce/`, `Billing/`) to the per-model resource layout. **PREFER** organizing its children under `Clusters/{Domain}/Resources/...`. **MUST** reuse the same domain name the rest of the app uses; the file move itself is optional.
 
@@ -26,7 +26,7 @@ app/Filament/Clusters/
 
 ## Naming
 
-- **MUST** name the generated class `{Domain}Cluster` (`CommerceCluster`, `BillingCluster`) under `Clusters/{Domain}/`. Reuse the application's domain noun for the enclosing directory.
+- **MUST** name the generated class `{Domain}Cluster` (`CommerceCluster`, `BillingCluster`) under `Clusters/{Domain}/`, with the domain name chosen as in the note above.
 
 ## Create
 
@@ -79,9 +79,9 @@ final class SalesReport extends Page
 
 ## Rules
 
-- **MUST** only cluster resources that are genuinely related — don't cluster for the sake of it.
+- **MUST** only cluster related resources.
 - **MUST** keep cluster files thin; navigation labels and icons only. Heavy logic belongs in the constituent Resources/Pages.
-- **AVOID** nested clusters — Filament doesn't support them and trying to fake it with prefixes will break breadcrumbs.
+- **AVOID** nested clusters — Filament doesn't support them, and faking them with prefixes breaks breadcrumbs.
 
 ## Authorization
 
@@ -96,4 +96,4 @@ This controls whether the cluster registers its main navigation item. It does no
 
 ## When NOT to use a cluster
 
-- **PREFER** `$navigationGroup` (a string label on each Resource) when you just want sidebar grouping without a URL prefix or its own landing page. Clusters add a `/cluster-slug/` URL segment to every child route — that's a breaking change for any saved deep-link.
+- **PREFER** `$navigationGroup` (a string label on each Resource) when you want only sidebar grouping, without a URL prefix or its own landing page. Clusters add a `/cluster-slug/` URL segment to every child route — a breaking change for any saved deep-link.

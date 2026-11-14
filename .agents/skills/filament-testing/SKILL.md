@@ -5,8 +5,7 @@ description: Use this skill whenever writing, editing, reviewing, or debugging P
 
 # Filament Testing Workflow
 
-Use this skill for focused Pest + Livewire feature coverage of Filament admin
-surfaces.
+For focused Pest + Livewire feature coverage of Filament admin surfaces.
 
 ## Read First
 

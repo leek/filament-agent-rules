@@ -7,13 +7,13 @@ paths:
 
 # Filament Providers — Panels & Global Configuration
 
-**Purpose:** two distinct providers, both covered here.
+**Purpose:** two providers.
 - **`{PanelId}PanelProvider`** (`app/Providers/Filament/`) — boots a panel: discovery paths, theme, middleware, plugins, tenancy, auth, navigation.
 - **`FilamentServiceProvider`** (`app/Providers/FilamentServiceProvider.php`) — registers **app-wide component defaults** via `configureUsing()`.
 
 ## Global defaults via `configureUsing`
 
-Filament components ship with stock defaults. A project overrides them **once, globally** — not per call site — by calling `Component::configureUsing()` in a service provider's `boot()`, conventionally a dedicated `app/Providers/FilamentServiceProvider.php` (registered in `bootstrap/providers.php`).
+A project overrides Filament's stock component defaults **once, globally** — not per call site — with `Component::configureUsing()` in a service provider's `boot()`, conventionally a dedicated `app/Providers/FilamentServiceProvider.php` (registered in `bootstrap/providers.php`).
 
 ```php
 public function boot(): void
@@ -38,11 +38,11 @@ public function boot(): void
 }
 ```
 
-`configureUsing` runs for **every** instance created afterwards. Set a value here and you never repeat it at a call site — and an agent that doesn't know it's set will either duplicate it or be surprised by behavior that isn't in the schema/table/action file.
+`configureUsing` runs for **every** instance created afterwards, so a value set here is never repeated at a call site. An agent unaware of it will duplicate it or be surprised by behavior absent from the schema/table/action file.
 
 ### Common global defaults to scan for
 
-Treat these as a **map of what to look for**, not a spec to copy:
+A **map of what to look for**, not a spec to copy:
 
 - action presentation: `slideOver`, icons, `modalIcon`, `modalIconColor`, `createAnother(false)`
 - fields: `Select` native/searchable/preload, `TextInput::trim()`, `Textarea` rows, date/time picker precision
@@ -52,7 +52,7 @@ Treat these as a **map of what to look for**, not a spec to copy:
 
 ### Rules
 
-- **MUST** read this provider before building or reviewing any Filament component — see the hub rule in `app/Filament/CLAUDE.md`. The schema/table/action file you're editing is only half the behavior; the other half lives here.
+- **MUST** read this provider before building or reviewing any Filament component — see the hub rule in `app/Filament/CLAUDE.md`. The schema/table/action file you're editing is only half the behavior; the rest lives here.
 - **MUST** establish an app-wide default **once** here rather than copying it onto every component. One `Select::configureUsing(...)` beats 50 `->native(false)` calls.
 - **PREFER** `bootUsing(...)` inside `configureUsing` for defaults that depend on the component's own state (e.g. "slide over unless it's a confirmation") — it runs after setup, so `isConfirmationRequired()` etc. are reliable.
 - **MUST NOT** put per-record or per-user logic in `configureUsing` — it runs for every instance with no record context. Record-aware defaults belong at the call site (closures) or in the schema class.
@@ -112,14 +112,14 @@ final class AdminPanelProvider extends PanelProvider
 ## Rules
 
 - **MUST** register every panel in `bootstrap/providers.php` (L11+) — `$panel->default()` only chooses which panel handles the `/` redirect; it doesn't auto-register.
-- **MUST** keep one PanelProvider per panel. Don't try to multiplex panels in one provider.
-- **MUST NOT** put business logic in the PanelProvider. It's wiring only.
+- **MUST** keep one PanelProvider per panel; don't multiplex panels in one provider.
+- **MUST NOT** put business logic in the PanelProvider — it's wiring only.
 
 ## Discovery paths
 
 `->discoverResources(in: ..., for: ...)` — every Resource under `in:` is registered. The `for:` namespace must match the directory's PSR-4 root.
 
-For multi-panel apps, **MUST** scope discovery so panels don't accidentally share resources:
+For multi-panel apps, **MUST** scope discovery so panels don't share resources:
 
 ```php
 // Admin panel
@@ -220,11 +220,11 @@ php artisan make:filament-page Tenancy/RegisterTeam --type=tenant-registration
 php artisan make:filament-page Tenancy/EditTeamProfile --type=tenant-profile
 ```
 
-- **MUST** attach the registering user to the new tenant inside `handleRegistration()` — Filament won't do this for you.
+- **MUST** attach the registering user to the new tenant inside `handleRegistration()` — Filament doesn't.
 
 ### Validation: tenant-scoped uniqueness
 
-When the same column needs to be unique *per tenant* (not globally), use the scoped variants:
+For a column unique *per tenant* (not globally), use the scoped variants:
 
 ```php
 TextInput::make('slug')
@@ -236,7 +236,7 @@ Select::make('category_id')
 ```
 
 - **MUST** use `->scopedUnique()` / `->scopedExists()` (not plain `->unique()` / `->exists()`) for any tenant-scoped column — plain Laravel rules ignore the tenant context and either falsely reject or falsely accept.
-- **MUST** ensure the queried model actually has a tenant global scope in this context, or supply a tenant constraint through `modifyQueryUsing`. Scoped validation applies existing Eloquent scopes; it does not invent tenant ownership. The example requires `Category` to be scoped through a tenant-aware resource or middleware.
+- **MUST** ensure the queried model has a tenant global scope in this context, or supply a tenant constraint through `modifyQueryUsing`. Scoped validation applies existing Eloquent scopes; it does not invent tenant ownership. The example requires `Category` to be scoped through a tenant-aware resource or middleware.
 
 ### Relationship selects — verify the related model's scope
 
@@ -319,7 +319,7 @@ php artisan make:filament-theme admin
 
 - **MUST** include the standard middleware stack shown above. Removing `AuthenticateSession` or `VerifyCsrfToken` breaks the panel in subtle ways.
 - **SHOULD** add custom middleware via `->middleware([...], isPersistent: true)` rather than wedging it into the default group.
-- **MUST** register any middleware that establishes **auth / permission / tenant context** (e.g. setting the active team for `spatie/laravel-permission`, resolving the current tenant) as **persistent** — `->middleware([...], isPersistent: true)`, `->tenantMiddleware([...], isPersistent: true)`, or `->persistentMiddleware([...])`. Panel `middleware()` / `authMiddleware()` run **only on full-page loads**; Livewire's `/livewire/update` routes bypass them. A non-persistent context middleware therefore leaves the context unset on every action click, so policies resolve empty and Filament **silently** drops the now-unauthorized action — the classic symptom is a button that renders on page load then vanishes the instant it's clicked, with nothing logged.
+- **MUST** register any middleware that establishes **auth / permission / tenant context** (e.g. setting the active team for `spatie/laravel-permission`, resolving the current tenant) as **persistent** — `->middleware([...], isPersistent: true)`, `->tenantMiddleware([...], isPersistent: true)`, or `->persistentMiddleware([...])`. Panel `middleware()` / `authMiddleware()` run **only on full-page loads**; Livewire's `/livewire/update` routes bypass them. A non-persistent context middleware therefore leaves the context unset on every action click, so policies resolve empty and Filament **silently** drops the now-unauthorized action. Symptom: a button renders on page load then vanishes when clicked, with nothing logged.
 
 ## Login screen layout
 
@@ -351,7 +351,7 @@ Useful slots: `BODY_START`, `BODY_END`, `HEAD_END`, `TOPBAR_END`, `SIDEBAR_NAV_S
 ->databaseTransactions()           // wrap every action callback in a DB transaction automatically
 ```
 
-- **MUST** call `->databaseTransactions()` on any panel with multi-step actions (Approve-then-Notify, Import, etc.). Without it, a failure halfway through an action leaves the DB in a half-written state.
+- **MUST** call `->databaseTransactions()` on any panel with multi-step actions (Approve-then-Notify, Import, etc.). Without it, a failure mid-action leaves the DB half-written.
 - **SHOULD** enable `->unsavedChangesAlerts()` on admin panels — it prevents the most common "I lost my work" support ticket.
 - **AVOID** `->spa()` on panels that embed external iframes or render large file uploads — SPA mode keeps the old page in memory and can leak DOM nodes.
 
@@ -402,7 +402,7 @@ php artisan filament:optimize
 
 - **MUST** run `filament:optimize` in the production deploy pipeline — it caches component discovery and shaves hundreds of ms off the first page-load query.
 - **MUST NOT** run `filament:optimize` in local dev — newly added resources/widgets won't be discovered until the cache is cleared.
-- Pair with `php artisan filament:clear-cached-components` in a `post-update-cmd` Composer hook so devs don't get stuck after pulling new resources.
+- Pair with `php artisan filament:clear-cached-components` in a `post-update-cmd` Composer hook so devs aren't stuck after pulling new resources.
 
 ## Response contracts are bound globally, not per panel
 

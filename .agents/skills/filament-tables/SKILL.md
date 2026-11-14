@@ -5,8 +5,8 @@ description: Use this skill whenever creating, editing, reviewing, or debugging 
 
 # Filament Table Workflow
 
-Use this skill for resource tables, relation manager tables, table widgets, and
-Livewire table components.
+For resource tables, relation manager tables, table widgets, and Livewire table
+components.
 
 ## Read First
 
@@ -19,7 +19,7 @@ Resolve paths from the current project root:
 5. `app/Filament/Widgets/CLAUDE.md` when the table is a widget
 6. `tests/Feature/Filament/CLAUDE.md` when tests are expected
 
-Also inspect the model, casts, relationships, indexes, policy, existing
+Inspect the model, casts, relationships, indexes, policy, existing
 `getEloquentQuery()`, and global table defaults.
 
 ## Build Flow

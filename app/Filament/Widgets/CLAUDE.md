@@ -58,7 +58,7 @@ final class OrdersOverview extends StatsOverviewWidget
 
 - **MUST** cache stat queries that hit large tables. Stats run on **every** dashboard load.
 - **SHOULD** cache counts on tables >100k rows. **MUST** include panel, tenant, and any user/permission context in the key, and preserve tenant scoping in the cached query; see `app/Filament/Resources/CLAUDE.md` → "Navigation badges".
-- **MUST** also key a cached reading on every page or table filter that changes it, hashed into one segment. A filter left out of the key shows the unfiltered numbers until the entry expires. Add the new filter to the key in the same change that adds the filter.
+- **MUST** also key a cached reading on every page or table filter that changes it, hashed into one segment. A filter left out of the key shows the unfiltered numbers until the entry expires. Add a new filter to the key in the change that adds it.
 - **SHOULD** format large stat values with `Number::abbreviate(..., precision: 1)` when raw counts stop being scan-friendly (`7.5B`, `202.7K` beats `7457147561`).
 
 ## Chart widget
@@ -117,7 +117,7 @@ context and use an application query that enforces ownership.
 
 - **MUST** use `flowframe/laravel-trend` (or equivalent) for time-series aggregations — never loop dates in PHP.
 - **SHOULD** add `protected ?string $pollingInterval = '60s';` only on charts that need live data. Otherwise `null` to disable polling.
-- **MUST** return a continuous label/data series for chart ranges. If the aggregation helper does not fill date gaps for you, fill missing dates explicitly before returning data so charts do not skip quiet days.
+- **MUST** return a continuous label/data series for chart ranges. If the aggregation helper does not fill date gaps, fill them before returning so charts do not skip quiet days.
 
 ### Filterable chart widget
 
@@ -151,11 +151,11 @@ final class RevenueChart extends ChartWidget
 ```
 
 - **MUST** delegate data assembly to an `app/Actions/` class — keep the widget a thin filter→data adapter.
-- **SHOULD** ship sensible defaults: `'week'` is the right default for most dashboards; `'today'` is misleading on slow-traffic days.
+- **SHOULD** default to `'week'` on most dashboards; `'today'` misleads on slow-traffic days.
 
 ## Custom widget (Blade view)
 
-A Blade-backed widget is the **last** resort — see the hub's "Prefer built-in components over custom Blade" ladder. First confirm a stats / chart / table widget can't do it, and that the content isn't just `Text`/`Icon`/`Image`/`UnorderedList` primes or a `Callout` rendered through a schema. Only when the markup is genuinely bespoke, drop to a plain `Widget` with a Blade view:
+A Blade-backed widget is the **last** resort — see the hub's "Prefer built-in components over custom Blade" ladder. First confirm a stats / chart / table widget can't do it, and that the content isn't just `Text`/`Icon`/`Image`/`UnorderedList` primes or a `Callout` rendered through a schema. Only when the markup is bespoke, drop to a plain `Widget` with a Blade view:
 
 ```php
 final class TasksWidget extends Widget
@@ -194,7 +194,7 @@ final class TasksWidget extends Widget
 ```
 
 - **MUST** wrap custom markup in `<x-filament-widgets::widget>` so background, border, and dark-mode styling stay consistent with stock widgets.
-- **MUST** return data from `getViewData()` rather than computing in the view — keeps the widget testable via `livewire(TasksWidget::class)->assertSuccessful()`.
+- **MUST** return data from `getViewData()`, not compute in the view — keeps the widget testable via `livewire(TasksWidget::class)->assertSuccessful()`.
 
 ## Table widget
 
@@ -253,7 +253,7 @@ protected ?string $pollingInterval = '30s';   // or null to disable
 ```
 
 - **MUST NOT** poll faster than 10s in production. Each poll re-runs the widget's data fetch across all logged-in admin sessions.
-- **SHOULD** disable polling (`protected ?string $pollingInterval = null;`) on stats and charts unless the widget genuinely needs live data. Filament's default polling is easy to miss and can create a background request stream from every open dashboard.
+- **SHOULD** disable polling (`protected ?string $pollingInterval = null;`) on stats and charts unless the widget needs live data. Filament's default polling is easy to miss and can create a background request stream from every open dashboard.
 
 ## Authorization
 

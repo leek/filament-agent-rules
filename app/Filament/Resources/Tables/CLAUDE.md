@@ -65,16 +65,16 @@ final class OrdersTable
 ## Rules
 
 - **MUST** make `configure()` `static` and return the `$table`.
-- **MUST NOT** extend a parent class or interface on `*Table` classes — keep them open so `configure()` can accept extra context args (`configure(Table $table, ?Customer $forCustomer = null)`) for reuse across panels / pages. Compose, don't inherit.
-- **MUST** eager-load any relation referenced by a column via dot-notation (`customer.name`). The Resource's `getEloquentQuery()` is the right place — see `app/Filament/Resources/CLAUDE.md`.
-- **MUST** call `->searchable()` and `->sortable()` only on indexed columns. Adding `->searchable()` to a non-indexed column hits the DB with an unindexed `LIKE` on every keystroke.
+- **MUST NOT** extend a parent class or interface on `*Table` classes — keep them open so `configure()` can accept extra context args (`configure(Table $table, ?Customer $forCustomer = null)`) for reuse across panels / pages.
+- **MUST** eager-load any relation referenced by a column via dot-notation (`customer.name`) in the Resource's `getEloquentQuery()` — see `app/Filament/Resources/CLAUDE.md`.
+- **MUST** call `->searchable()` and `->sortable()` only on indexed columns: `->searchable()` on a non-indexed column runs an unindexed `LIKE` on every keystroke.
 - **MUST** prefer `TextColumn::make('relation.column')->searchable()` over a raw query — Filament builds a correct join.
 - **SHOULD** persist user state across reloads via `->persistFiltersInSession()` / `->persistSortInSession()` / `->persistSearchInSession()`. **AVOID** persisting search if it leaks across users on shared admin accounts.
-- **MUST** scope bulk actions with appropriate authorization — the policy is **not** auto-checked on bulk actions.
+- **MUST** authorize bulk actions — the policy is **not** auto-checked; see "Bulk actions".
 
 ## Per-column / per-filter extraction — `Tables/Columns/`, `Tables/Filters/`
 
-For a single heavily-configured column or filter, extract into its own class with a static `make()` returning one column/filter. Mirrors the `Schemas/Components/` pattern.
+Extract a single heavily-configured column or filter into its own class with a static `make()`. Mirrors the `Schemas/Components/` pattern.
 
 ```php
 // app/Filament/Resources/Customers/Tables/Columns/CustomerCountryColumn.php
@@ -151,7 +151,7 @@ First exhaust built-in columns and modifiers (`->state()`, `->formatStateUsing()
 
 ### `ViewColumn` — point a column at a Blade view (no class)
 
-`Filament\Tables\Columns\ViewColumn` is the lightweight hatch: a real column whose body is your Blade view. Undocumented, but first-class and long-lived. Use it for **one-off** bespoke markup that won't be reused.
+`Filament\Tables\Columns\ViewColumn` is a real column whose body is your Blade view. Undocumented, but first-class and long-lived. Use it for **one-off** bespoke markup.
 
 ```php
 use Filament\Tables\Columns\ViewColumn;
@@ -229,7 +229,7 @@ AudioPlayerColumn::make('recording')
 
 - **MUST** put resource-specific custom columns in `app/Filament/Resources/{Models}/Tables/Columns/`; generic, model-agnostic columns may live in `app/Filament/Tables/Columns/`.
 - **MUST** keep custom-column Blade views under `resources/views/filament/tables/columns/` and namespace resource-specific views to avoid collisions.
-- **MUST** extend only the abstract base `Filament\Tables\Columns\Column` for real custom column types. Do not subclass concrete columns like `TextColumn`; wrap them with `static make()` instead.
+- **MUST** extend only the abstract base `Filament\Tables\Columns\Column` for custom column types. Do not subclass concrete columns like `TextColumn`; wrap them with `static make()`.
 - **MUST** keep custom-column Blade dark-mode-aware (Filament/Tailwind classes, `dark:` variants).
 - **MUST NOT** run queries or heavy computation inside the column's Blade view — it renders once per row (25+ times per page). Compute in `->state(fn ($record) => ...)` and eager-load on the Resource's `getEloquentQuery()`.
 
@@ -346,10 +346,10 @@ ImageColumn::make('logo')->defaultImageUrl(asset('placeholder.svg')); // fallbac
 ])
 ```
 
-- Use `->toolbarActions(...)` for toolbar and bulk actions. Use `->groupedBulkActions([...])` as a shorthand when wrapping in a single `BulkActionGroup`.
+- Use `->toolbarActions(...)` for toolbar and bulk actions; `->groupedBulkActions([...])` is shorthand for a single `BulkActionGroup`.
 - **MUST** authorize bulk actions explicitly — policies do not run automatically. Use `->authorizeIndividualRecords('ability')` when each selected record needs an individual policy check.
 - **MUST** chunk bulk operations for >1k rows; do not iterate the full `$records` collection in memory.
-- **PREFER** giving non-trivial bulk actions their own `->schema([...])` when the operation needs input (reason, channel, message, assignee). A bulk action can be a small workflow; validate through the schema, then delegate the selected records and data to an `app/Actions/` class.
+- **PREFER** giving non-trivial bulk actions their own `->schema([...])` when the operation needs input (reason, channel, message, assignee). Validate through the schema, then delegate the selected records and data to an `app/Actions/` class.
 
 ## Polling
 
@@ -411,14 +411,14 @@ public static function configure(Table $table): Table
 - **MUST** put the fixed-size element (avatar/thumbnail) on `->grow(false)` and the flexible content on `->grow()` inside a `Split`, or the image stretches to fill.
 - **SHOULD** wrap the card body in `Panel::make([...])` when you want a visible card surface (border/background) and optional `->collapsible()` — a bare `Stack` has no chrome.
 - **SHOULD** keep `->searchable()` / `->sortable()` on the columns and lift filters above the grid with `FiltersLayout::AboveContent` (see "Filters") — a card grid with no visible filter bar is hard to scan.
-- This is distinct from `->stackedAt('md')`, which renders an ordinary **row** table as cards only below a breakpoint. `contentGrid()` is a card grid at every breakpoint.
+- Distinct from `->stackedAt('md')`, which renders an ordinary **row** table as cards only below a breakpoint. `contentGrid()` is a card grid at every breakpoint.
 
-- **MUST NOT** hack a card button into `TextColumn->default()` with raw Blade/`HtmlString`. Use `->recordUrl(...)`, a real `Action` in `->recordActions([...])`, or `ViewColumn` for genuinely bespoke markup.
+- **MUST NOT** hack a card button into `TextColumn->default()` with raw Blade/`HtmlString`. Use `->recordUrl(...)`, a real `Action` in `->recordActions([...])`, or `ViewColumn` for bespoke markup.
 - **MUST NOT** render each card as a bare `Filament\Tables\Columns\Layout\View` wrapping one blade — a `Layout\View` is not a bindable column, so the global **search box and sort menu disappear**. Build the card from real columns inside `Split`/`Stack` (keep `->searchable()`/`->sortable()` on them), or, for a single fully-custom card body, a custom column that `extends Filament\Tables\Columns\Column` with a `$view` — it renders your blade **and** stays a real column, so search/sort/filters keep working.
 
 ## Empty state
 
-Filament ships a generic empty state (a faded icon + "No records"), but it reads as a bug, not a designed state. **MUST** give every table a full empty state — heading **and** description **and** icon — and an action when one makes sense.
+Filament's generic empty state (a faded icon + "No records") reads as a bug, not a designed state. **MUST** give every table a full empty state — heading **and** description **and** icon — and an action when one makes sense.
 
 ```php
 ->emptyStateIcon(Heroicon::OutlinedShoppingCart)
@@ -430,12 +430,12 @@ Filament ships a generic empty state (a faded icon + "No records"), but it reads
 ])
 ```
 
-- **MUST** set all three of `->emptyStateHeading()`, `->emptyStateDescription()`, `->emptyStateIcon()`. A heading alone is not enough — the description tells the admin *why* it's empty and *what to do*.
+- **MUST** set all three of `->emptyStateHeading()`, `->emptyStateDescription()`, `->emptyStateIcon()` — the description tells the admin *why* it's empty and *what to do*.
 - **SHOULD** write the heading in Title Case and the description in sentence case; see `app/Filament/Actions/CLAUDE.md` → "Rules".
 - **SHOULD** pick an `emptyStateIcon` that matches the model (reuse the resource's nav icon) so the empty table still reads as "Orders."
 - **SHOULD** add `->emptyStateActions([CreateAction::make()])` when the admin can act from here — but gate it on the policy so you don't dangle a button they can't use.
-- **PREFER** distinguishing "never had any" from "filtered to nothing": when the table is filtered, an `emptyStateHeading` like "No Orders Match These Filters" with a description nudging the admin to clear filters beats the generic create prompt. Branch with a closure reading the active filters/`$livewire` if the distinction matters.
-- This rule applies equally to **relation manager** tables and **table widgets** — same `emptyState*` methods, same bar. Use `->emptyStateActions([])` to suppress the default create button on read-only relations.
+- **PREFER** distinguishing "never had any" from "filtered to nothing": when the table is filtered, an `emptyStateHeading` like "No Orders Match These Filters" with a description nudging the admin to clear filters beats the generic create prompt. Branch with a closure reading the active filters/`$livewire`.
+- Applies equally to **relation manager** tables and **table widgets** — same `emptyState*` methods. Use `->emptyStateActions([])` to suppress the default create button on read-only relations.
 
 ## Never spread integer-keyed option maps
 

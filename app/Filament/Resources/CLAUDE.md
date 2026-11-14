@@ -116,7 +116,7 @@ app/Filament/Resources/Customers/
 
 ### How to build the extracted classes
 
-The Resource only **wires** these classes (`form()`, `table()`, `infolist()`, `getRelations()`, `getPages()`). The `configure()` / `make()` class shapes and extraction rules live with the code they govern — read the matching file when you build that class, **not** this one:
+The Resource only **wires** these classes (`form()`, `table()`, `infolist()`, `getRelations()`, `getPages()`). The `configure()` / `make()` class shapes and extraction rules live in the matching file — read it, **not** this one, when building that class:
 
 | Building… | Read |
 | --------- | ---- |
@@ -125,11 +125,11 @@ The Resource only **wires** these classes (`form()`, `table()`, `infolist()`, `g
 | an extracted Action (reusable across header / row / bulk surfaces) | `app/Filament/Actions/CLAUDE.md` |
 | a relation manager | `app/Filament/Resources/RelationManagers/CLAUDE.md` |
 
-- **MUST NOT** inline a form, table, or infolist definition in the Resource — it's a wiring manifest only. The "where to read" table above is the contract: definitions live in their own classes, governed by their own rules.
+- **MUST NOT** inline a form, table, or infolist definition in the Resource — definitions live in their own classes, governed by the files in the table above.
 
 ## Eager loading — `getEloquentQuery()`
 
-Override `getEloquentQuery()` to eager-load relations the table/infolist will touch. This is the single best perf lever in a Filament panel:
+Override `getEloquentQuery()` to eager-load relations the table/infolist will touch — the single best perf lever in a Filament panel:
 
 ```php
 public static function getEloquentQuery(): Builder
@@ -237,7 +237,7 @@ public function update(User $user, Order $order): bool|Response
 }
 ```
 
-- **SHOULD** use `Response::deny('...')` over a silent `false` whenever the admin can plausibly fix the situation — "locked", "out of date range", "missing approval" all benefit from being visible.
+- **SHOULD** use `Response::deny('...')` over a silent `false` when the admin can plausibly fix the situation ("locked", "out of date range", "missing approval").
 
 ### Field/column visibility
 

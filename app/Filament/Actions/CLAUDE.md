@@ -49,11 +49,11 @@ Action::make('approve')
 
 - **MUST** call `->requiresConfirmation()` on any destructive or irreversible action.
 - **MUST** set `->modalIcon(...)` + `->modalIconColor(...)` on modal/slide-over actions unless the project already does this globally via `configureUsing`. Use intent colors: `danger`, `success`, `warning`, `primary`.
-- **MUST** delegate work via `->action(fn ($record) => app(SomeAction::class)->handle($record))` — never write the business logic inline. Filament Actions are presentational glue.
-- **MUST** authorize every custom action with `->authorize('ability')` or an authorization callback, wherever it is declared: an extracted `Action` subclass, `getHeaderActions()`, a relation manager's table, a schema component. Filament supplies a record-bound action's record to the policy automatically. See "Authorization" for what Filament does and does not check for you.
+- **MUST** delegate work via `->action(fn ($record) => app(SomeAction::class)->handle($record))` — never inline business logic; Filament Actions are presentational glue.
+- **MUST** authorize every custom action with `->authorize('ability')` or an authorization callback, wherever it is declared: an extracted `Action` subclass, `getHeaderActions()`, a relation manager's table, a schema component. Filament supplies a record-bound action's record to the policy automatically. See "Authorization" for what Filament does and does not check.
 - **SHOULD** pair every long-running action with a `Notification` in `->after(...)` so the admin gets explicit success/failure feedback.
-- **AVOID** chaining `->action()` AND `->schema()` AND `->after()` with heavy logic — extract to a dedicated class once you cross ~15 lines.
-- **SHOULD** write every action/button `->label(...)` in **Title Case** — capitalize each major word ("Request Documents", "Mark Verified", "Convert to Client"); lowercase only interior articles / short conjunctions / short prepositions (a, an, the, and, or, but, of, to, in, for). Applies to row, header, and bulk actions and any clickable label. Headings follow the same rule: `->modalHeading()`, `->emptyStateHeading()`, `Section` and tab headings, page titles ("Approve Order?", "No Orders Yet"). Descriptions, helper text and notification bodies stay sentence case. Name a modal's submit button after what it does with `->modalSubmitActionLabel('Add Goal')`; the default reads "Submit". When the panel is localized, pass `__('...')` instead and apply Title Case to the translation value — see `app/Filament/CLAUDE.md` → "Labels & localization".
+- **AVOID** chaining `->action()` AND `->schema()` AND `->after()` with heavy logic — extract to a dedicated class past ~15 lines.
+- **SHOULD** write every action/button `->label(...)` in **Title Case** — capitalize each major word ("Request Documents", "Mark Verified", "Convert to Client"); lowercase only interior articles / short conjunctions / short prepositions (a, an, the, and, or, but, of, to, in, for). Applies to row, header, and bulk actions and any clickable label. Headings too: `->modalHeading()`, `->emptyStateHeading()`, `Section` and tab headings, page titles ("Approve Order?", "No Orders Yet"). Descriptions, helper text and notification bodies stay sentence case. Name a modal's submit button after what it does with `->modalSubmitActionLabel('Add Goal')`; the default reads "Submit". When the panel is localized, pass `__('...')` instead and apply Title Case to the translation value — see `app/Filament/CLAUDE.md` → "Labels & localization".
 
 ## Authorization
 
@@ -63,10 +63,10 @@ Action::make('refund')
     ->action(...);
 ```
 
-What Filament checks for you, and what it does not:
+What Filament checks, and what it does not:
 
-- A resource page or relation manager supplies a policy check only for the stock CRUD classes (`CreateAction`, `EditAction`, `ViewAction`, `DeleteAction`, `ReplicateAction`, `RestoreAction`, `ForceDeleteAction` and the delete/restore bulk actions). Everything else, including your own class that `extends Action` and happens to create or edit a record, is **allowed by default** for anyone who can load the page, so a view-only user can run it. A standalone page or plain Livewire component supplies no default at all, even for the stock classes.
-- Filament refuses to mount or call an action that is hidden, disabled or unauthorized, but only by the conditions declared **on that action**. A button hidden in Blade, a condition on a sibling action, or the gate of the page it was first built for protects nothing once the action is mounted somewhere else.
+- A resource page or relation manager supplies a policy check only for the stock CRUD classes (`CreateAction`, `EditAction`, `ViewAction`, `DeleteAction`, `ReplicateAction`, `RestoreAction`, `ForceDeleteAction` and the delete/restore bulk actions). Everything else, including your own class that `extends Action` and creates or edits a record, is **allowed by default** for anyone who can load the page, so a view-only user can run it. A standalone page or plain Livewire component supplies no default, even for the stock classes.
+- Filament refuses to mount or call an action that is hidden, disabled or unauthorized, but only by the conditions declared **on that action**. A button hidden in Blade, a condition on a sibling action, or the gate of the page it was first built for protects nothing once the action is mounted elsewhere.
 
 So:
 
@@ -95,7 +95,7 @@ Action::make('reject')
     });
 ```
 
-- **MUST** validate via the `->schema([...])` definition rather than re-validating inside `->action(...)`. Filament rejects the modal submit on validation failure.
+- **MUST** validate via the `->schema([...])` definition, not again inside `->action(...)`. Filament rejects the modal submit on validation failure.
 - **MUST** configure modal input with `->schema([...])`, not `->form([...])`.
 - **MUST** cap a modal's free-text field at the length of the column the Action writes it to, or widen that column to `text`. See `app/Filament/Resources/Schemas/CLAUDE.md` → "Units and length".
 - **MUST** add `x-on:keydown.enter.prevent` to a plain text or search input rendered inside the modal (a custom Blade field, a picker's filter box). The modal is one `<form>`, so Enter in that input runs the modal's submit action: a search keystroke sends the email. See `app/Filament/Pages/CLAUDE.md` for the same trap in a page form.
@@ -113,12 +113,12 @@ BulkAction::make('archive')
 ```
 
 - **MUST** chunk the iteration for >1k rows. Dispatch a job per chunk instead of looping in the request.
-- **MUST** authorize bulk actions — policies are **not** auto-checked on bulk actions. Use `->authorizeIndividualRecords('ability')` when each selected record needs an individual policy check.
+- **MUST** authorize bulk actions — policies are **not** auto-checked on them. Use `->authorizeIndividualRecords('ability')` when each selected record needs an individual policy check.
 - **SHOULD** call `->deselectRecordsAfterCompletion()` so the table doesn't keep the (now-mutated) rows selected.
 
 ## Reusable action class
 
-When the same action appears in ≥2 surfaces, extract it. Create the class with this shape:
+Shape of an extracted action (required at ≥2 surfaces; see "Reusable across surfaces"):
 
 ```php
 final class ApproveAction extends Action
@@ -167,7 +167,7 @@ $table->recordActions([
 ]);
 ```
 
-- **MUST** extract the moment an action appears in ≥2 surfaces. Inline duplication drifts — the row-action `->visible(...)` and the header-action `->visible(...)` will diverge silently.
+- **MUST** extract the moment an action appears in ≥2 surfaces. Inline duplication drifts — the row-action and header-action `->visible(...)` diverge silently.
 - **MUST** keep `setUp()` free of surface-specific assumptions (e.g. don't assume `$record` exists — header actions don't have one). Branch on `$this->getRecord()` if behaviour must vary.
 - **SHOULD** ship a separate bulk variant (`EmailAction` + `EmailBulkAction`) when bulk is meaningful.
 
@@ -185,7 +185,7 @@ Inside an `->action(...)` callback, inject the Action instance and bail out with
 });
 ```
 
-`halt()` keeps the modal open; without it the modal closes on every callback completion (even failures), which hides the error.
+Without `halt()` the modal closes on every callback completion (even failures), which hides the error.
 
 ## Slide-overs vs modals
 
@@ -339,11 +339,11 @@ Notification::make()
 
 Rules:
 
-- **MUST** call `->send()` — without it the notification is built and discarded silently. Easiest bug to ship.
+- **MUST** call `->send()` — without it the notification is built and discarded silently.
 - **MUST** use `->title(...)` (short) + `->body(...)` (detail). One-line titles read better in stacked toasts.
 - **MUST** mark recoverable-error notifications `->persistent()` — auto-dismiss hides the actual problem.
 - **PREFER** `->send()` (toast) for ephemeral feedback; **PREFER** `->sendToDatabase($user)` for events the admin should find later (new comment, mention, export ready).
-- **AVOID** "Saved!" notifications on routine CRUD; Filament already ships a default save notification — duplicating it just adds noise. Override `getSavedNotification()` on the page if you need to customise.
+- **AVOID** "Saved!" notifications on routine CRUD; Filament already ships a default save notification, so a duplicate adds noise. Override `getSavedNotification()` on the page to customise.
 
 For a stock success or failure toast, set the title on the action:
 
@@ -425,7 +425,7 @@ Wire into the table:
 - **MUST** keep every exported cell under 32,767 characters, the XLSX cell limit. One longer value (a long note, a rich-text body, a joined list) throws `InvalidArgumentException` in the writer and fails the whole queued export. Cap long-text columns with `ExportColumn::make('notes')->limit(32000)`.
 - **MUST** turn block boundaries into line breaks before stripping HTML from a rich-text column (`</p>`, `<br>`, `</li>` → `"\n"`, then `strip_tags()`). A bare `strip_tags()` glues paragraphs together: "Called mom" + "Left VM" exports as "Called momLeft VM".
 - Filament imports use job batches for all sizes. Asynchronous completion sends a database notification; sync imports send a persistent session notification. Email is not the default. **MUST** configure a queue worker for asynchronous processing; a sync queue connection runs jobs synchronously.
-- **MUST** install the job-batch, database-notification, and Filament action tables before imports/exports. If these migrations are not already present, generate/publish them and review them before migrating:
+- **MUST** install the job-batch, database-notification, and Filament action tables before imports/exports. If these migrations are missing, generate/publish and review them before migrating:
 
   ```bash
   php artisan make:queue-batches-table

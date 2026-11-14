@@ -5,7 +5,7 @@ description: Use this skill whenever creating, editing, reviewing, or debugging 
 
 # Filament Widget Workflow
 
-Use this skill for dashboard widgets and resource page widgets.
+For dashboard widgets and resource page widgets.
 
 ## Read First
 

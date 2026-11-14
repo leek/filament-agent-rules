@@ -8,7 +8,7 @@ paths:
 
 **Purpose:** declarative component trees for editing (Form) and viewing (Infolist) records. Both share the same `Schema` base class.
 
-> **Read first:** the schema model — one `Filament\Schemas\Schema` container, four component categories (fields / entries / layout / prime), the `->components()` vs nested `->schema()` seam, and infinite child-schema nesting — is foundational and applies everywhere a schema appears (forms, infolists, page `content()`, action modals, wizards). It's documented once in the hub: `app/Filament/CLAUDE.md` → "How schemas work — the component tree". This file builds on it.
+> **Read first:** the schema model — one `Filament\Schemas\Schema` container, four component categories (fields / entries / layout / prime), the `->components()` vs nested `->schema()` seam, and infinite child-schema nesting — applies everywhere a schema appears (forms, infolists, page `content()`, action modals, wizards). It is documented in the hub: `app/Filament/CLAUDE.md` → "How schemas work — the component tree".
 
 ## Where they live
 
@@ -81,15 +81,15 @@ public static function form(Schema $schema): Schema
 - **MUST** handle the database's unique violation as well as declaring `->unique()`. The rule only checks before the write, so a double submit or a concurrent save passes validation twice and the second write throws `Illuminate\Database\UniqueConstraintViolationException`: a 500. Catch it where the record is written, send a `->persistent()` danger notification that names the conflict, and throw `Filament\Support\Exceptions\Halt` so the form stays open.
 - **MUST** mirror `$casts` in form/infolist component choice: enum cast → `Select::make(...)->options(Status::class)`, datetime cast → `DateTimePicker::make(...)`, JSON cast → `KeyValue::make(...)` or `Repeater::make(...)`.
 - **MUST** use `->dehydrated(false)` on display-only fields that must NOT be saved.
-- **SHOULD** group related fields into `Section::make('...')` blocks and lay them out on a grid — see "Layout" below. A flat list of full-width fields is a failed layout.
+- **SHOULD** group related fields into `Section::make('...')` blocks and lay them out on a grid — see "Layout" below.
 
 ## Layout — size to content, group into rows
 
-Filament stacks components vertically by default — one full-width field per row. That is almost never the best layout. Treat layout as first-class: size each field to its content and group related fields onto shared rows.
+Filament stacks components vertically by default, one full-width field per row, which is almost never the best layout. Size each field to its content and group related fields onto shared rows.
 
 ### The 12-column grid
 
-Give a `Section` (or `Grid`) `->columns(12)` and size each child with `->columnSpan(n)`. Twelve divides cleanly into halves (6), thirds (4), quarters (3), sixths (2) — enough granularity to size anything.
+Give a `Section` (or `Grid`) `->columns(12)` and size each child with `->columnSpan(n)`. Twelve divides into halves (6), thirds (4), quarters (3), sixths (2).
 
 ```php
 Section::make('Patient')
@@ -110,10 +110,10 @@ Section::make('Patient')
     ]),
 ```
 
-- **MUST** size every field to its content, not to the full row. A ZIP (5 chars), quantity, state, or unit selector belongs in a narrow span (2–4); a free-text name or email in ~6; only genuinely long values (descriptions, URLs) go full width.
+- **MUST** size every field to its content, not to the full row. A ZIP (5 chars), quantity, state, or unit selector belongs in a narrow span (2–4); a free-text name or email in ~6; only long values (descriptions, URLs) go full width.
 - **MUST** group fields read or entered together onto one row — first/middle/last name, city/state/ZIP, value/unit pairs. Stacking them wastes vertical space and breaks the visual relationship.
 - **PREFER** a 12-column grid (`->columns(12)`) with explicit `->columnSpan(n)` over smaller column counts — consistent math, resizes without re-thinking.
-- **MUST** use `->columnSpanFull()` for a genuinely full-width field, **not** `->columnSpan(12)` or `->columnSpan('full')`. `columnSpanFull()` is full width on *every* breakpoint; `columnSpan(12)`/`('full')` only fill the row at `lg`+ and behave differently below it.
+- **MUST** use `->columnSpanFull()` for a full-width field, **not** `->columnSpan(12)` or `->columnSpan('full')`. `columnSpanFull()` is full width on *every* breakpoint; `columnSpan(12)`/`('full')` only fill the row at `lg`+ and behave differently below it.
 
 A pair that lives *outside* a 12-column section can carry its own `Grid::make(2)` — the relationship reads at a glance and the two validate together:
 
@@ -126,7 +126,7 @@ Grid::make(2)->schema([
 
 ### Responsiveness is automatic at `lg` — but only there
 
-Integer `->columns(n)` and `->columnSpan(n)` apply at the `lg` breakpoint and up; **below `lg` everything collapses to a single column** automatically. So a plain `->columns(12)` form already stacks cleanly on phones with no extra work.
+Integer `->columns(n)` and `->columnSpan(n)` apply at the `lg` breakpoint and up; **below `lg` everything collapses to a single column**, so a plain `->columns(12)` form already stacks on phones.
 
 For control between mobile and desktop, pass a responsive array:
 
@@ -170,7 +170,7 @@ $schema->components([
 ```
 
 - **MUST** group by **domain meaning, not data type or creation order** — each `Section` is one concept the admin reasons about as a unit ("Identity", "Specifications", "Billing"), not a bucket of same-typed inputs. `name` next to `engine_hp` next to `color` forces a context-switch on every field.
-- **SHOULD** make a form "look its best": labeled `Section`s per logical group, fields sized to content, related fields paired on rows. A wall of stacked full-width inputs is a failed layout even if every field works.
+- **SHOULD** give a form labeled `Section`s per logical group, fields sized to content, related fields paired on rows. A wall of stacked full-width inputs is a failed layout even if every field works.
 - **PREFER** (house polish) `->compact()` sections with an `->icon(...)->iconColor('primary')` header — tighter and more scannable than the default. Match whatever the project's existing sections do.
 - **SHOULD** keep a `Section`'s own `->columns()` at 12 to match the page grid, so a `columnSpan(6)` means the same thing everywhere.
 
@@ -178,7 +178,7 @@ $schema->components([
 
 ## Field affordances — make every field self-explanatory
 
-A field that *works* isn't a field that's *done*. Communicate the expected format, units, constraints, and meaning so admins don't guess — every guess is an inconsistent row or a support ticket.
+Communicate the expected format, units, constraints, and meaning so admins don't guess — every guess is an inconsistent row or a support ticket.
 
 ### Right component for the data
 
@@ -223,7 +223,7 @@ Validation *rules* (not just messages — see "Custom validation messages") prev
 ### FileUpload — always constrain
 
 - **MUST** set `->acceptedFileTypes([...])` and `->maxSize(kb)` on every `FileUpload` — unconstrained uploads are a performance and security hole.
-- **MUST** treat disk visibility explicitly: Filament uploads are **private** by default. Use `->visibility('public')` only when the file is genuinely public, and scope the disk (`->disk('s3')`).
+- **MUST** treat disk visibility explicitly: Filament uploads are **private** by default. Use `->visibility('public')` only when the file is public, and scope the disk (`->disk('s3')`).
 - **SHOULD** queue expensive image processing / conversions rather than doing them in the request path.
   ```php
   FileUpload::make('attachment')
@@ -321,7 +321,7 @@ $schema->components([
 ]);
 ```
 
-- **MUST** return one component from `make()` (`TextInput`, `Select`, etc.). For a cluster of fields, use the fragment pattern below — different shape, different purpose.
+- **MUST** return one component from `make()` (`TextInput`, `Select`, etc.). For a cluster of fields, use the fragment pattern below.
 - **MUST NOT** extend `TextInput` / `Select` / etc. Wrap, don't subclass — Filament component classes use static factories.
 - **PREFER** a dedicated component class (one that returns a configured Filament component) over a generic `Support/` or `Helpers/` class for building UI — keep Filament construction in Filament-shaped classes, where the next reader expects it. This is Filament's own documented "component classes" pattern.
 - **SHOULD** extract when a field has >5 chained modifiers, custom rules, conditional visibility, or appears in ≥2 schemas.
@@ -334,7 +334,7 @@ $schema->components([
 | Component (`Components/`) | `make(): TextInput`/`Select`/… — one component | single field, heavy config, reused or scannability win |
 | Fragment (below)     | `get(): array` — cluster of components | logical cluster (contact info, address, audit metadata) |
 
-**MUST** name by return type: `make()` returns **one** Filament component (mirrors Filament's own `Component::make()`); `get()` returns an **array** of components. Never use `make()` for an array — `ContactFields::make()` reads like it returns one component but actually spreads a cluster. That ambiguity is the footgun this split removes.
+**MUST** name by return type: `make()` returns **one** Filament component (mirrors Filament's own `Component::make()`); `get()` returns an **array** of components. Never use `make()` for an array — `ContactFields::make()` reads like it returns one component but spreads a cluster.
 
 ## Reusable schema fragments
 
@@ -359,7 +359,7 @@ $schema->components([
 ]);
 ```
 
-- **MUST** name the array-returning method `get()`, not `make()` — reserve `make()` for classes that return a single component (see the table above).
+- **MUST** name the array-returning method `get()`, not `make()` (see "Component vs fragment — pick by return type, named by method").
 - **MUST** keep fragments stateless — no `$this`, no constructor args that vary by record. If the fragment needs record context, accept it as a parameter (`get(?Model $record = null)`).
 - **PREFER** this over a base class that defines `getSharedFields()` — composition reads better than inheritance for schemas.
 
@@ -490,7 +490,7 @@ Inside a `*Js` expression: `$get('field')` reads state, `$set('field', value)` m
 - **PREFER** `visibleJs()` / `hiddenJs()` and `afterStateUpdatedJs()` when the condition is pure form state — it removes a round-trip and the `->live()` requirement on the dependency.
 - **MUST** fall back to PHP callbacks for database, auth, relationship, enum, or cast logic. `$get()` in JS only sees state already on the page.
 - **MUST NOT** concatenate user input into JS strings; read user values via `$get()` / `$state` instead.
-- **MUST** remember this is JavaScript syntax (`===`, `!==`, `&&`), not PHP.
+- **MUST** write JavaScript syntax (`===`, `!==`, `&&`), not PHP.
 - **MUST** commit Livewire property changes with `$wire.set('prop', value)`, never bare `$wire.prop = value`, when the change must trigger a **server re-render**. Bare proxy assignment updates the client-side proxy *optimistically only* — no round-trip, no re-render — so a display-mode / tab / filter toggle set that way silently never re-renders (from Alpine/blade handlers, use `Livewire.find(id).set('prop', value)`). Use bare assignment only for a value you don't need the server to react to.
 
 ## Custom validation messages
@@ -523,7 +523,7 @@ Select::make('state_id')
     ->required(fn (Get $get) => filled($get('country_id'))),
 ```
 
-`->live(onBlur: true)` defers the network request until the field loses focus — preferred for `TextInput` to avoid one request per keystroke.
+`->live(onBlur: true)` defers the request until the field loses focus — preferred for `TextInput` to avoid one request per keystroke.
 
 - **MUST** keep `->live()` here: the options come from the database, so a server round-trip is unavoidable. Scope the re-render with `->partiallyRenderComponentsAfterStateUpdated(['state_id'])` so only the dependent select refreshes. If the dependency merely toggles visibility or copies a value (no DB), use the `*Js` variants instead — no `live()` needed. See "Reactivity & rendering".
 
@@ -564,7 +564,7 @@ Use on `CreateRecord` pages; on Edit pages, prefer Tabs.
 
 ## Prime components — arbitrary content without Blade
 
-Prime components render *arbitrary* content directly in a schema (form, infolist, or page) — no Blade view required. Reach for these before hand-writing markup. They live in `Filament\Schemas\Components\*`.
+Prime components render *arbitrary* content directly in a schema (form, infolist, or page) with no Blade view. Use them before hand-writing markup. They live in `Filament\Schemas\Components\*`.
 
 | Prime | Renders |
 | ----- | ------- |
@@ -600,7 +600,7 @@ Section::make('Permissions')->schema([
 
 ## Callout — inline info / warning blocks
 
-Reach for the `Callout` schema component for any inline info, tip, warning, or error block inside a form or infolist. **MUST NOT** hand-roll this with a custom Blade view, a `Placeholder`, or raw HTML — `Callout` already handles status colors, icons, dark mode, and footer actions.
+Use the `Callout` schema component for any inline info, tip, warning, or error block inside a form or infolist. **MUST NOT** hand-roll this with a custom Blade view, a `Placeholder`, or raw HTML — `Callout` already handles status colors, icons, dark mode, and footer actions.
 
 ```php
 use Filament\Schemas\Components\Callout;
@@ -669,7 +669,7 @@ Custom entries are the infolist analog of custom columns (`app/Filament/Resource
 
 ### `ViewEntry` — point an entry at a Blade view (no class)
 
-`Filament\Infolists\Components\ViewEntry` is the lightweight hatch: a real entry whose body is your Blade view. Use it for **one-off** bespoke markup.
+`Filament\Infolists\Components\ViewEntry` is a real entry whose body is your Blade view. Use it for **one-off** bespoke markup.
 
 ```php
 use Filament\Infolists\Components\ViewEntry;
@@ -695,7 +695,7 @@ Inside the view: `$getState()` is the entry's value, `$record` is the model, `$g
 
 ### Custom entry class — when it's reused or configurable
 
-When the same entry ships in ≥2 infolists, or needs its own fluent config (`->max(100)`), generate a class that **extends the base `Entry`**:
+When the same entry ships in ≥2 infolists, or needs its own fluent config (`->max(100)`), generate a class that **extends `Entry`**:
 
 ```bash
 php artisan make:filament-infolist-entry ScoreGaugeEntry

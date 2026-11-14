@@ -5,9 +5,9 @@ description: Use this skill whenever you need Filament implementation guidance, 
 
 # Filament Docs And Rule Routing
 
-This repository's canonical product is the directory-scoped rule set. Use this
-skill to find the smallest relevant slice of that rule set before writing,
-reviewing, or debugging Filament code.
+This repository's canonical product is the directory-scoped rule set. Find the
+smallest relevant slice of it before writing, reviewing, or debugging Filament
+code.
 
 ## Resolve The Project Root
 
@@ -15,17 +15,16 @@ Find the current project root from the workspace or nearest Laravel project
 marker (`artisan`, `composer.json`, or `.git`). Do not use absolute user home
 paths. Resolve every path below from that project root.
 
-When working in a project that has installed these rules for a specific agent,
-read the same scoped path using the active agent filename if present:
+In a project that installed these rules for a specific agent, read the same
+scoped path using the active agent filename if present:
 
 - Codex: `AGENTS.md`
 - Claude: `CLAUDE.md`
 - Gemini: `GEMINI.md`
 - Cursor (apply-agent-rules installation): `.cursorrules`
 
-If several exist, prefer the file for the agent currently doing the work, then
-fall back to `CLAUDE.md` because that is the canonical authoring filename in
-this repo.
+If several exist, prefer the current agent's file, then fall back to
+`CLAUDE.md`, the canonical authoring filename in this repo.
 
 ## Local Rules First
 
@@ -47,9 +46,9 @@ Read only the files relevant to the task:
 | Theme CSS | `resources/css/filament/CLAUDE.md` |
 | Tests | `tests/Feature/Filament/CLAUDE.md` |
 
-Always read the hub (`app/Filament/CLAUDE.md`) for non-trivial work. It
-contains cross-cutting rules such as global defaults, schema composition,
-authorization, and the custom Blade escape ladder.
+Always read the hub (`app/Filament/CLAUDE.md`) for non-trivial work: it holds
+cross-cutting rules such as global defaults, schema composition, authorization,
+and the custom Blade escape ladder.
 
 Also check `composer.json`, `composer.lock`, or `vendor/` for a local Filament
 Blueprint install; if present, read and follow its installed guidance alongside
@@ -58,9 +57,9 @@ these rules before consulting external docs.
 ## Official Docs
 
 If local rules do not answer a method signature or edge case, consult current
-official Filament docs. Prefer official documentation over generated or vendored
-snapshots. When you use external docs, keep the answer grounded in the project
-rules first and mention any docs-derived assumption.
+official Filament docs, preferring them over generated or vendored snapshots.
+Ground the answer in the project rules first and mention any docs-derived
+assumption.
 
 ## Version Stance
 

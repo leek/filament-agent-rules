@@ -1,8 +1,6 @@
 # Filament Tests
 
-**Purpose:** Pest + Livewire feature tests for Filament Resources, Pages, Widgets, and Relation Managers.
-
-Use Pest + Livewire feature tests for the current Filament panel builder APIs.
+**Purpose:** Pest + Livewire feature tests for Filament Resources, Pages, Widgets, and Relation Managers, using the current Filament panel builder APIs.
 
 ## Where they live
 
@@ -24,7 +22,7 @@ tests/Feature/Filament/
 ## Naming
 
 - **MUST** match the class under test + `Test` suffix.
-- One test file per Resource page (`List{Models}Test`, `Create{Model}Test`, `Edit{Model}Test`) **or** one per Resource. Pick one and be consistent across the repo.
+- One test file per Resource page (`List{Models}Test`, `Create{Model}Test`, `Edit{Model}Test`) **or** one per Resource. Pick one repo-wide.
 
 ## Setup
 
@@ -50,7 +48,7 @@ beforeEach(function () {
 ### Panel, tenant, and lazy-loading context
 
 - **MUST** select the panel explicitly for direct Livewire tests when the target is not the default panel. Verify the panel ID in its provider.
-- **MUST** enable `Model::preventLazyLoading()` in the test bootstrap (or the application's testing configuration) for the N+1 checks below. If enabling it for an individual test, restore its previous setting afterward.
+- **MUST** enable `Model::preventLazyLoading()` in the test bootstrap (or the application's testing configuration) for the N+1 checks below. If enabled for a single test, restore the previous setting afterward.
 
   ```php
   // tests/Pest.php, with the Eloquent Model imported:
@@ -72,7 +70,7 @@ Filament::bootCurrentPanel();
 
 ## Page rendering
 
-`livewire(PageClass::class)->assertSuccessful()` — the lowest-cost smoke test. **MUST** ship one per resource page; it catches schema typos, missing imports, and policy regressions in one assertion.
+`livewire(PageClass::class)->assertSuccessful()` — the lowest-cost smoke test. **MUST** ship one per resource page; one assertion catches schema typos, missing imports, and policy regressions.
 
 ```php
 it('renders the list page', function () {
@@ -247,7 +245,7 @@ livewire(EditOrder::class, ['record' => $order->getRouteKey()])
     );
 ```
 
-- **MUST** assert notifications on any action whose only success signal is a toast — without the assertion, a regression that drops the notification looks green.
+- **MUST** assert notifications on any action whose only success signal is a toast — otherwise a regression that drops the notification looks green.
 - **AVOID** asserting on notification body text — bodies often include interpolated record state and break across factory seeds.
 
 ## Authorization
@@ -353,7 +351,7 @@ For every Resource, **MUST** cover:
 ## Rules
 
 - **MUST** use Pest's `it(...)` form, not `test(...)` — keeps assertions readable as English sentences.
-- **MUST** factory-create test data — never insert via raw `Model::create([...])` in tests.
+- **MUST** factory-create test data — never insert via raw `Model::create([...])`.
 - **AVOID** asserting on rendered HTML strings except for known-stable text (`assertSee('Total')`); markup is volatile across Filament minor versions.
 - **PREFER** asserting on DB state (`assertDatabaseHas`, `expect($record->refresh()->...)`) over Livewire `assertSet(...)`.
 - **MUST** test the form's `->live()` dependent fields by `->set('data.parent_id', $id)` then `->assertSet('data.child_field', ...)` — these break silently when relationships change.

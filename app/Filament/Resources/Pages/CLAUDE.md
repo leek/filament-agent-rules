@@ -6,7 +6,7 @@ paths:
 
 # Resource Pages
 
-**Purpose:** the actual Livewire pages backing each Resource route (`index`, `create`, `view`, `edit`, plus any custom pages).
+**Purpose:** the Livewire pages backing each Resource route (`index`, `create`, `view`, `edit`, plus any custom pages).
 
 ## Where they live
 
@@ -32,13 +32,13 @@ app/Filament/Resources/Orders/
 
 ## Rules
 
-- **MUST** keep page classes thin. They wire actions, lifecycle hooks, and redirects — nothing else.
+- **MUST** keep page classes thin: they wire actions, lifecycle hooks, and redirects only.
 - **MUST** delegate non-trivial work to an `app/Actions/` class.
 - **SHOULD** override `getHeaderActions()` to add row-less actions on List pages and per-record actions on View/Edit pages.
 
 ## Lifecycle hooks (Create / Edit)
 
-Run logic at well-defined points in the save pipeline. Use these instead of model events when the logic is panel-specific (e.g. attaching the current admin user as `created_by_id`):
+Hooks run at fixed points in the save pipeline. Use them instead of model events when the logic is panel-specific (e.g. attaching the current admin user as `created_by_id`):
 
 ```php
 protected function mutateFormDataBeforeCreate(array $data): array
@@ -82,11 +82,11 @@ Hook map:
 
 ## Custom page content — embed a Livewire component, don't rebuild the page
 
-When an Edit/View/Create page needs something Filament can't express out of the box — a real-time status sidebar, a bespoke chart, a custom approval widget — the instinct is to throw the page away and hand-build a fully custom Livewire page. **Don't.** Almost always only **one or two pieces** are genuinely custom. Keep the standard Filament page — its form, relation managers, save pipeline, validation, notifications, and authorization — and slot the custom piece in as an embedded Livewire component via the page's `content()` schema. (Cross-cutting rule: hub → "Prefer embedding a Livewire component over a custom page".)
+When an Edit/View/Create page needs something Filament can't express out of the box (a real-time status sidebar, a bespoke chart, a custom approval widget), **don't** hand-build a fully custom Livewire page: almost always only **one or two pieces** are custom. Keep the standard Filament page — its form, relation managers, save pipeline, validation, notifications, and authorization — and embed the custom piece as a Livewire component via the page's `content()` schema. (Cross-cutting rule: hub → "Prefer embedding a Livewire component over a custom page".)
 
 ### Override `content()` to lay out the page
 
-Every resource page builds its body from `content(Schema $schema): Schema`. The default returns the form + relation managers; override it to place them on a grid alongside your own components. **Keep the defaults via their helper components** so you don't lose any wiring:
+Every resource page builds its body from `content(Schema $schema): Schema`. The default returns the form + relation managers; override it to place them on a grid alongside your own components. **Keep the defaults via their helper components**:
 
 | Helper | Returns |
 | ------ | ------- |
@@ -124,8 +124,8 @@ final class EditTicket extends EditRecord
 }
 ```
 
-- **MUST** keep the standard pieces via `getFormContentComponent()` / `getRelationManagersContentComponent()` rather than re-deriving them — you retain validation, the save pipeline, dirty-state tracking, and the save notification for free.
-- **MUST** reach for `Livewire::make(...)` (`Filament\Schemas\Components\Livewire`) for the custom piece **before** converting the whole page to a bespoke Livewire/Blade page. One custom component inside a standard page beats a custom page that reimplements the form.
+- **MUST** keep the standard pieces via `getFormContentComponent()` / `getRelationManagersContentComponent()` rather than re-deriving them — you retain validation, the save pipeline, dirty-state tracking, and the save notification.
+- **MUST** use `Livewire::make(...)` (`Filament\Schemas\Components\Livewire`) for the custom piece **before** converting the whole page to a bespoke Livewire/Blade page. One custom component inside a standard page beats a custom page that reimplements the form.
 
 ### The embedded Livewire component
 
@@ -172,17 +172,17 @@ final class TicketSidebar extends Component
 - **MUST** pass the record as a prop (`['record' => $this->getRecord()]`) — Livewire serializes the model reference and rehydrates it each request. Only serializable data crosses into an embedded component; it can't reach the parent page's live form state.
 - **MUST** re-resolve records through the tenant-scoped Resource query and authorize inside every callable mutation/listener. Parent-page access does not authorize an embedded component's operations; use the application's specific transition ability when it differs from `update`.
 - **MUST** apply the same rule to a standalone Livewire component rendered in a panel (`@livewire(...)` in a page view, a modal's content, a widget's child). See "Authorize every request, not only `mount()`" below.
-- **MUST** delegate the actual mutation to an `app/Actions/` class (`TransitionTicketStatusAction`) — the Livewire component is a UI boundary, exactly like a Filament Action. Transition rules, audit-trail writes, and `resolved_at`/`closed_at` stamping belong in the Action, not the component.
+- **MUST** delegate the mutation to an `app/Actions/` class (`TransitionTicketStatusAction`) — the Livewire component is a UI boundary, like a Filament Action. Transition rules, audit-trail writes, and `resolved_at`/`closed_at` stamping belong in the Action, not the component.
 - **SHOULD** refresh via a dispatched event + `#[On(...)]` listener so the embedded component re-reads after the form saves (`afterSave()` → `$this->dispatch('ticket-sidebar-refresh')`).
 - **MUST** back status/badge rendering with `HasColor`/`HasLabel` enums so the sidebar and the resource table share one source of truth (hub → "Enums for status / type / category").
 - **SHOULD** add `->key('...')` when embedding multiple instances of the same component, and `->lazyLoaded()` for an expensive component so the page paints first.
-- The component's own Blade view is still subject to the hub's Blade ladder — use `<x-filament::section>`, `<x-filament::button>`, and Filament/Tailwind classes (with `dark:` variants) so it matches the panel; reserve hand-rolled markup for the genuinely bespoke part.
+- The component's Blade view still follows the hub's Blade ladder — use `<x-filament::section>`, `<x-filament::button>`, and Filament/Tailwind classes (with `dark:` variants) so it matches the panel; reserve hand-rolled markup for the bespoke part.
 
 ### Authorize every request, not only `mount()`
 
-Livewire runs `mount()` once, on the first render. Every later request (a `wire:click`, `$refresh`, a poll, an event listener, a property update) skips it and runs `hydrate()` instead. A check that lives only in `mount()` therefore protects the first paint and nothing after: a user whose access is revoked, or whose record is archived, keeps reading and acting through the open component. Filament's own `EditRecord` / `ViewRecord` call `authorizeAccess()` from both `mount()` and `hydrate()`; do the same for every check you add yourself.
+Livewire runs `mount()` once, on the first render. Every later request (a `wire:click`, `$refresh`, a poll, an event listener, a property update) skips it and runs `hydrate()` instead. A check only in `mount()` therefore protects the first paint and nothing after: a user whose access is revoked, or whose record is archived, keeps reading and acting through the open component. Filament's own `EditRecord` / `ViewRecord` call `authorizeAccess()` from both `mount()` and `hydrate()`; do the same for every check you add yourself.
 
-What Filament already repeats for you: a panel page's static `canAccess()` runs on every Livewire request (`hydrateCanAuthorizeAccess()`), so a page gated only by `canAccess()` needs no `hydrate()` of its own, and a test for one passes with the method deleted. Write `hydrate()` for what `canAccess()` cannot see: a check on the page's record or route parameters, and any plain Livewire component, which gets nothing.
+Filament already repeats one check: a panel page's static `canAccess()` runs on every Livewire request (`hydrateCanAuthorizeAccess()`), so a page gated only by `canAccess()` needs no `hydrate()` of its own, and a test for one passes with the method deleted. Write `hydrate()` for what `canAccess()` cannot see: a check on the page's record or route parameters, and any plain Livewire component, which gets nothing.
 
 ```php
 public function mount(Ticket $record): void

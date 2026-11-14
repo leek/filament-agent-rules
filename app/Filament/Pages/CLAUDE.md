@@ -2,7 +2,7 @@
 
 **Purpose:** standalone pages inside a panel that aren't tied to a single Resource — dashboards, settings, wizards, reports, import/export workflows.
 
-> Resource-bound pages live under `app/Filament/Resources/{Models}/Pages/`. Read `app/Filament/Resources/Pages/CLAUDE.md` for their rules.
+> Resource-bound pages live under `app/Filament/Resources/{Models}/Pages/`; their rules are in `app/Filament/Resources/Pages/CLAUDE.md`.
 
 ## Where they live
 
@@ -79,11 +79,11 @@ final class Settings extends Page
 
 - **MUST** delegate non-trivial logic to an `app/Actions/` class. The page is the Livewire boundary; the Action is the logic.
 - **MUST** declare `$navigationIcon` and `$navigationGroup` when the page appears in the sidebar — naked entries look broken.
-- **SHOULD** skip navigation entirely with `protected static bool $shouldRegisterNavigation = false;` for pages reached only via a button (e.g. import wizards).
+- **SHOULD** skip navigation with `protected static bool $shouldRegisterNavigation = false;` for pages reached only via a button (e.g. import wizards).
 
 ## Form inside a page
 
-Filament pages host forms as a `Schema` on the page — same `form(Schema $schema): Schema` shape as Resources. Pattern:
+Pages host forms as a `Schema` on the page — same `form(Schema $schema): Schema` shape as Resources:
 
 ```php
 use App\Actions\ImportProductsAction;
@@ -143,8 +143,8 @@ final class ImportProducts extends Page
 ```
 
 - **MUST** keep the page Blade thin — render `{{ $this->form }}`, a schema, or `<x-filament-widgets::widgets />`, not bespoke markup. Build the page body from a Schema of built-in **components + prime components** (`Text`/`Icon`/`Image`/`UnorderedList`) rather than hand-written HTML. See the hub's "Prefer built-in components over custom Blade" ladder.
-- **SHOULD** reserve custom Blade in the page body for genuinely non-Filament layouts; even then, wrap content in `<x-filament::section>` so it stays themed.
-- **PREFER**, for a genuinely-custom *interactive* piece, embedding it as its own Livewire component — `@livewire(MyWidget::class, [...])` in the page Blade, or `Livewire::make(MyWidget::class)` inside a page schema — over hand-coding the whole page's interactivity. Same principle as resource pages: build only the custom piece, embed it. See `app/Filament/Resources/Pages/CLAUDE.md` → "Custom page content" and the hub → "Prefer embedding a Livewire component over a custom page".
+- **SHOULD** reserve custom Blade in the page body for non-Filament layouts; even then, wrap content in `<x-filament::section>` so it stays themed.
+- **PREFER**, for a custom *interactive* piece, embedding it as its own Livewire component — `@livewire(MyWidget::class, [...])` in the page Blade, or `Livewire::make(MyWidget::class)` inside a page schema — over hand-coding the whole page's interactivity. As on resource pages, build only the custom piece: see `app/Filament/Resources/Pages/CLAUDE.md` → "Custom page content" and the hub → "Prefer embedding a Livewire component over a custom page".
 - **MUST** give a Livewire component embedded inside the page's `<form>` a `<div>` root, not a `<form>`. The HTML parser drops a nested form tag, and the component's `wire:id` goes with it.
 - **MUST** add `x-on:keydown.enter.prevent` to a plain text or search input rendered inside the page's `<form>` (a custom Blade field, a picker's filter box). Without it, Enter in that input submits the whole form.
 

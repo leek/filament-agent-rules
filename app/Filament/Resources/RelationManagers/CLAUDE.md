@@ -23,7 +23,7 @@ app/Filament/Resources/Orders/
 ## Naming
 
 - **MUST** be `{Relation}RelationManager` — `Relation` matches the parent model's relation method name in **StudlyCase** (`items()` → `ItemsRelationManager`, `paymentMethods()` → `PaymentMethodsRelationManager`).
-- **MAY** name the class after the display concept rather than the literal relation method when the concept reads clearer to an admin and the two would otherwise diverge. In that case, `$relationship` (**not** the class name) is the source of truth Filament binds to and **MUST** still name the parent relation method exactly. The class name is the label; `$relationship` is the wiring.
+- **MAY** name the class after the display concept rather than the literal relation method when the concept reads clearer to an admin. Filament binds to `$relationship` (**not** the class name), which **MUST** still name the parent relation method exactly.
 
 ## Create
 
@@ -34,7 +34,7 @@ php artisan make:filament-relation-manager OrderResource items Item
 # arg 3: related-model title attribute
 ```
 
-- **`--no-interaction` does NOT suppress the related-resource prompt.** `make:filament-relation-manager … --no-interaction` still asks "Which related resource?" and dies with `Laravel\Prompts\Exceptions\NonInteractiveValidationException: … Required` — the three positional args are not enough. Either run it interactively, pass the related-resource option the prompt expects, or hand-create the manager by copying a sibling `*RelationManager` and editing `$relationship` / `$recordTitleAttribute`.
+- **`--no-interaction` does NOT suppress the related-resource prompt:** `make:filament-relation-manager … --no-interaction` still asks "Which related resource?" and dies with `Laravel\Prompts\Exceptions\NonInteractiveValidationException: … Required` — the three positional args are not enough. Run it interactively, pass the related-resource option the prompt expects, or hand-create the manager by copying a sibling `*RelationManager` and editing `$relationship` / `$recordTitleAttribute`.
 
 ## Class shape
 
@@ -127,7 +127,7 @@ For pivot relations, **MUST** decide explicitly:
 - **`CreateAction`** — create a new related row AND attach it.
 - **`AssociateAction` / `DissociateAction`** — for HasMany when the FK is nullable.
 
-For attaching an existing record with pivot fields, customize the Attach action's schema in the table's header actions:
+To attach an existing record with pivot fields, customize the Attach action's schema in the table's header actions:
 
 ```php
 AttachAction::make()

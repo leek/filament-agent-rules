@@ -5,9 +5,9 @@ description: Use this skill whenever creating, editing, reviewing, or debugging 
 
 # Filament Infolist Workflow
 
-Use this skill for read-only record display. Infolists are schema component
-trees that use entries for display, layout components for structure, and prime
-components for static or computed content.
+For read-only record display. Infolists are schema component trees that use
+entries for display, layout components for structure, and prime components for
+static or computed content.
 
 ## Read First
 

@@ -5,9 +5,8 @@ description: Use this skill whenever creating, editing, reviewing, or debugging 
 
 # Filament Action Workflow
 
-Use this skill for UI actions rendered by Filament. Do not confuse these with
-domain actions under `app/Actions/`; a Filament action should call domain logic,
-not contain it.
+For UI actions rendered by Filament, not domain actions under `app/Actions/`; a
+Filament action should call domain logic, not contain it.
 
 ## Read First
 
