@@ -19,7 +19,7 @@ npx apply-agent-rules apply leek/filament-agent-rules
 npx apply-agent-rules apply leek/filament-agent-rules --agents claude,codex
 
 # Pin to a release tag
-npx apply-agent-rules apply leek/filament-agent-rules@v0.18.0 --agents claude
+npx apply-agent-rules apply leek/filament-agent-rules@v0.18.1 --agents claude
 
 # Re-pull later, preserving local edits and pruning removed files
 npx apply-agent-rules update
@@ -149,7 +149,7 @@ Use alongside [leek/laravel-agent-rules](https://github.com/leek/laravel-agent-r
 
 ## Versioning
 
-Releases are tagged. Pin with `leek/filament-agent-rules@v0.18.0` if you want reproducible installs. A pin stays on that release; it does not include changes made afterward.
+Releases are tagged. Pin with `leek/filament-agent-rules@v0.18.1` if you want reproducible installs. A pin stays on that release; it does not include changes made afterward.
 
 ## More Filament plugins by Leek
 
