@@ -207,6 +207,7 @@ Beyond mirroring `$casts` (see Rules), pick the component that makes invalid inp
 
 - **MUST** mark numeric units with `->prefix('$')` / `->suffix('/hr')` / `->suffix('kg')` — `Rate: 50` is ambiguous; `$50 /hr` isn't. Use both prefix and suffix for a rate.
 - **SHOULD** set `->maxLength(n)` on short-string fields (postcode, code, plate, PIN) — it caps input, surfaces a live character counter, and prevents silent DB truncation. Pair with a `->placeholder` showing the format.
+- **MUST** make every free-text field fit the column it is saved to: `->maxLength(255)` for a `string` column, or a `text` column for a note, reason or comment. This includes an action modal's `Textarea` whose value an Action writes to another model. PostgreSQL rejects an over-long value (SQLSTATE 22001) and the whole save rolls back; MySQL outside strict mode truncates it silently. When several entry points write the same column, share one length constant between them.
 
 ### Field-level validation — stop bad data at entry
 
@@ -273,6 +274,8 @@ Select::make('customer_id')
 ```
 
 **MUST** call `->preload()` only on small relations (<200 rows). For larger sets, leave the async search behavior.
+
+**MUST** raise `->optionsLimit(n)` to cover the whole list when every option has to be reachable without typing. A non-native Select renders at most 50 options (the default limit), and a searchable relationship Select also limits the preloaded query and each search to 50. Option 51 onward is silently missing: reachable only by search on a searchable Select, and not at all otherwise.
 
 **MUST**, before narrowing any Select or CheckboxList option query, read "Select and CheckboxList gotchas" at the end of this file: the option query is also the validation, so it has to keep the record's stored value and match what the save path accepts.
 
@@ -744,6 +747,34 @@ ScoreGaugeEntry::make('health_score')->max(100);
 - **MUST** keep Blade views under `resources/views/filament/infolists/components/` and namespace resource-specific view files to avoid collisions.
 - **MUST** keep the Blade dumb: compute in `->state(fn ($record) => ...)`, never query inside the view, and use Filament/Tailwind classes with `dark:` variants.
 
+## Controls that depend on setup
+
+A control whose effect depends on setup the user may not have done yet (business hours, a connected integration, a default assignee, a payer) is a trap if it can be switched on anyway: the user enables it, nothing happens, and they never learn why. Think one step past the control: what does the user hit next, and can the UI take them there?
+
+- **MUST** disable the control, or just its "turn on" direction, while the prerequisite is missing. A control that is already on stays free to turn off, so the user is never stuck with it.
+- **MUST** refuse the same write server-side (`afterStateUpdated`, the action's `action()`); `disabled()` is presentation only.
+- **MUST** name the missing prerequisite next to the control (helper text, hint, tooltip) and link to the exact place it is fixed, with the page URL plus the section's `->id()` as an anchor. Show the link only when the viewer may open that page (`Page::canAccess()`); otherwise name the prerequisite as plain text.
+- **SHOULD** change the copy once the prerequisite exists ("Uses your business hours.", still linked) rather than leaving a warning that is no longer true.
+- **MUST** treat requirement copy you write or review ("needs X", "requires X", "set X first", "only works when X") as a to-do: make the UI enforce the requirement and link to X. Passive copy that leaves the user to find X is not done.
+
+```php
+Toggle::make('after_hours_replies')
+    ->disabled(fn (): bool => ! $this->hasBusinessHours() && ! $this->isOn())
+    ->helperText(fn (): HtmlString => new HtmlString(
+        'Answers texts while the practice is closed. Set your '
+        . '<a href="' . e(ManageLeadSettings::getUrl() . '#business-hours') . '" class="fi-link underline">business hours</a>'
+        . ' to turn this on.'
+    ))
+    ->afterStateUpdated(function (Toggle $component, bool $state): void {
+        if ($state && ! $this->hasBusinessHours()) {
+            $component->state(false); // the boundary, not just the disabled UI
+
+            return;
+        }
+        // …write
+    });
+```
+
 ## Select and CheckboxList gotchas
 
 ### A relationship Select's `modifyQueryUsing` is also its validation
@@ -779,6 +810,20 @@ A picker has three readers of "which records are eligible": the option list, the
 
 - **MUST** search the columns the option label displays. A picker labelled by name that searches a key or code finds nothing the user types.
 - Keeping a stored value that is no longer eligible is the one sanctioned exception; see "A relationship Select's `modifyQueryUsing` is also its validation" above.
+
+### A default or prefilled value must be an offered option
+
+A value the code puts into a Select (`->default(...)`, an action's `->fillForm([...])`, a settings page's `fill()`) is validated like one the user picked. If it is not in the option query (an inactive user, another tenant's record, a type deleted since it was stored), the form fails with "The selected <label> is invalid." on a field the user never touched.
+
+- **MUST** resolve a prefilled id through the same eligibility query as the options, and fill `null` when it is not there.
+
+  ```php
+  ->fillForm(fn (Trainee $record): array => [
+      'assignee_id' => User::query()->assignable()->whereKey($record->user_id)->value('id'),
+  ])
+  ```
+
+- A value already stored on the record being edited is the exception: keep it offered, as described in "A relationship Select's `modifyQueryUsing` is also its validation" above.
 
 ### Disabled options are rejected on save
 

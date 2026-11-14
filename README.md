@@ -10,19 +10,19 @@ Use [apply-agent-rules](https://github.com/leek/apply-agent-rules) to drop the r
 
 ```bash
 # Preview what will be written
-npx apply-agent-rules list leek/filament-agent-rules --agents claude --exclude 'scripts/**'
+npx apply-agent-rules list leek/filament-agent-rules --agents claude
 
 # Install into the current project, interactive agent picker
-npx apply-agent-rules apply leek/filament-agent-rules --exclude 'scripts/**'
+npx apply-agent-rules apply leek/filament-agent-rules
 
 # Non-interactive (pick agents explicitly)
-npx apply-agent-rules apply leek/filament-agent-rules --agents claude,codex --exclude 'scripts/**'
+npx apply-agent-rules apply leek/filament-agent-rules --agents claude,codex
 
 # Pin to a release tag
-npx apply-agent-rules apply leek/filament-agent-rules@v0.18.0 --agents claude --exclude 'scripts/**'
+npx apply-agent-rules apply leek/filament-agent-rules@v0.18.0 --agents claude
 
 # Re-pull later, preserving local edits and pruning removed files
-npx apply-agent-rules update --exclude 'scripts/**'
+npx apply-agent-rules update
 ```
 
 Supported agents: `claude`, `codex`, `gemini`, `cursor`, `windsurf`, `cline`.
@@ -30,10 +30,10 @@ Supported agents: `claude`, `codex`, `gemini`, `cursor`, `windsurf`, `cline`.
 The installer walks the source filesystem, including gitignored files in a local checkout. To install from this maintenance checkout, also exclude the gitignored root meta file:
 
 ```bash
-npx apply-agent-rules apply . --agents claude,codex --exclude CLAUDE.md --exclude 'scripts/**'
+npx apply-agent-rules apply . --agents claude,codex --exclude CLAUDE.md
 ```
 
-The root-only `CLAUDE.md` exclusion leaves nested canonical rules intact. The installer already excludes `.github/` maintenance records and workflows.
+The root-only `CLAUDE.md` exclusion leaves nested canonical rules intact. The installer already excludes `.github/`, which holds the maintenance records and the rules lint (`.github/scripts/lint-rules.sh`), so neither reaches a project.
 
 ## How install works
 
@@ -140,7 +140,7 @@ The remaining files are reached through directory inheritance where applicable a
 | `app/Filament/Widgets/CLAUDE.md`                  | Stats / Chart / Table widgets, polling, lazy loading                       |
 | `app/Filament/Actions/CLAUDE.md`                  | Action plumbing: forms inside actions, modals, bulk, requires-confirmation |
 | `app/Providers/Filament/CLAUDE.md`                | PanelProvider: discovery, middleware, multi-panel, tenancy                 |
-| `resources/css/filament/CLAUDE.md`                | Theme CSS: Vite registration, source scanning, tokens, build step          |
+| `resources/css/filament/CLAUDE.md`                | Theme CSS: Vite registration, source scanning, tokens, build, selector cost |
 | `tests/Feature/Filament/CLAUDE.md`                | Pest + Livewire tests: pages, forms, tables, actions, authorization        |
 
 ## Companion

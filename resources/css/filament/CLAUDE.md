@@ -39,6 +39,10 @@ npm run build
 
 **MUST** compile the theme after CSS changes using the project's configured build command, or use its Vite development server while developing. `php artisan filament:assets` publishes registered package assets; it does not compile the Vite theme and is not a required step after a theme CSS edit.
 
+## Keep `:has()` narrow
+
+**MUST NOT** write `:has()` on an ancestor of a broad subject: `.fi-tabs:has(> .indicator) *`, `:not(.card:has(.x) *)`, `body:has(...) .fi-btn`. The browser must re-check that ancestor for every element the subject can match whenever the DOM changes, and Filament appends modals, dropdowns, tooltips and notifications to `<body>` constantly. One such selector in a shared component file made every modal open on a 70-card board cost 38 ms of style recalculation; without it, 0.9 ms. Put `:has()` on the element being styled (`.fi-tabs:has(> .indicator)`), or reach the same elements with a sibling or descendant selector (`.indicator ~ *`).
+
 ## Keep table wrappers stacking-neutral
 
 Filament renders a table's column-manager and filter modals **inside** `.fi-ta-header-ctn`. **MUST NOT** give `.fi-ta`, `.fi-ta-ctn` or `.fi-ta-header-ctn` a stacking context (`position` + `z-index`, `isolation`, `transform`, `filter`): it traps those modals under the sidebar and topbar and shrinks their backdrop to the table card. To contain z-index ladders inside the table body (sticky headers, pinned cells), put `isolation: isolate` on `.fi-ta-content-ctn`, which holds no modals. Check plugin CSS for the same properties on those wrappers.

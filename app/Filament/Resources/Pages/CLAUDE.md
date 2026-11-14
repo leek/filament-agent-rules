@@ -180,7 +180,9 @@ final class TicketSidebar extends Component
 
 ### Authorize every request, not only `mount()`
 
-Livewire runs `mount()` once, on the first render. Every later request (a `wire:click`, `$refresh`, a poll, an event listener, a property update) skips it and runs `hydrate()` instead. A check that lives only in `mount()` therefore protects the first paint and nothing after: a user whose access is revoked, or whose record is archived, keeps reading and acting through the open component. Filament's own `EditRecord` / `ViewRecord` call `authorizeAccess()` from both `mount()` and `hydrate()`; do the same in anything you write, embedded or standalone, page or component.
+Livewire runs `mount()` once, on the first render. Every later request (a `wire:click`, `$refresh`, a poll, an event listener, a property update) skips it and runs `hydrate()` instead. A check that lives only in `mount()` therefore protects the first paint and nothing after: a user whose access is revoked, or whose record is archived, keeps reading and acting through the open component. Filament's own `EditRecord` / `ViewRecord` call `authorizeAccess()` from both `mount()` and `hydrate()`; do the same for every check you add yourself.
+
+What Filament already repeats for you: a panel page's static `canAccess()` runs on every Livewire request (`hydrateCanAuthorizeAccess()`), so a page gated only by `canAccess()` needs no `hydrate()` of its own, and a test for one passes with the method deleted. Write `hydrate()` for what `canAccess()` cannot see: a check on the page's record or route parameters, and any plain Livewire component, which gets nothing.
 
 ```php
 public function mount(Ticket $record): void
@@ -200,8 +202,9 @@ protected function authorizeAccess(): void
 }
 ```
 
-- **MUST** authorize in `mount()` **and** `hydrate()` for read access, and again inside each mutating method with the ability that mutation needs.
+- **MUST** authorize a record-level or component-level read check in `mount()` **and** `hydrate()`, and again inside each mutating method with the ability that mutation needs.
 - **MUST** treat every public property as client-writable. Mark identifiers and scope keys `#[Locked]` (`Livewire\Attributes\Locked`), or re-resolve them through the scoped query and authorize the result. A `#[Computed]` method that queries by `$this->orderId` returns whatever id the browser sent.
+- **MUST** read a `#[Computed]` as a property (`$this->rows`, `$this->canTick`), in PHP and in Blade. Calling it as a method (`$this->rows()`) bypasses the per-request cache and reruns the body, queries included, at every call site: once per row when the view calls it in a loop.
 - `unset($this->rows)` clears a `#[Computed]` cache, but a computed that derives from a stored public property rebuilds the same stale value. When a refresh event replaces the underlying record, reset the stored property as well.
 - **MUST NOT** make an embedded component's `mount()` stricter than the page that embeds it, or an otherwise authorized page 403s as a whole. Render the component conditionally instead (`->visible(...)` on `Livewire::make()`, or `@if` in the view).
 

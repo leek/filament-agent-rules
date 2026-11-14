@@ -135,6 +135,9 @@ Custom Blade skips Filament theming, dark mode, spacing, and state handling. Bef
   ```
 
 - **MUST** give every `x-sortable-item` an `x-sortable-handle`, on the item itself or on an element inside it. Filament's `x-sortable` directive starts a drag only from `[x-sortable-handle]`, so a list without one cannot be reordered at all. When the row holds buttons, links or inputs, put the handle on a dedicated grip rather than the row, or every click on a control starts a drag.
+- **MUST NOT** put `@js(...)` or any other Blade directive inside a component tag's attribute (`<x-filament::button wire:click="tick(@js($key))">`). Blade does not compile directives there: the browser receives the literal `@js($key)` and the click throws `Livewire Expression Error`. Write `wire:click="tick({{ Js::from($key) }})"` (`Illuminate\Support\Js`); `@js` works only on a plain HTML element. A test that calls the method directly still passes, so assert the rendered attribute or click the control in a browser.
+- **MUST** give a hand-built scrolling table's `overflow-x-auto` wrapper `relative`. Screen-reader-only text (`sr-only`) is absolutely positioned, so inside a non-positioned scroll box it escapes the box and the whole page scrolls sideways on a phone.
+- **MUST** make a link or button repeated per row or per cell say which row it acts on in its accessible name ("Open March 2026 for Dana Lee", by `aria-label` or `sr-only` text), and mark the grid up as a real `<table>` with `<th scope>` row and column headers. Twenty links all named "Open" cannot be told apart by a screen reader.
 - A hand-built upload control must honour the form contract in `app/Filament/Resources/Schemas/CLAUDE.md` → "Custom upload fields".
 
 ## Prefer embedding a Livewire component over a custom page
@@ -158,29 +161,19 @@ use Filament\Support\Icons\Heroicon;
 enum OrderStatus: string implements HasLabel, HasColor, HasIcon
 {
     case Pending = 'pending';
-    case Approved = 'approved';
-    case Paid    = 'paid';
-    case Shipped = 'shipped';
+    case Paid = 'paid';
     case Cancelled = 'cancelled';
 
     public function getLabel(): string
     {
-        return match ($this) {
-            self::Pending   => 'Pending',
-            self::Approved  => 'Approved',
-            self::Paid      => 'Paid',
-            self::Shipped   => 'Shipped',
-            self::Cancelled => 'Cancelled',
-        };
+        return ucfirst($this->value);
     }
 
     public function getColor(): string
     {
         return match ($this) {
-            self::Pending   => 'warning',
-            self::Approved  => 'success',
-            self::Paid      => 'success',
-            self::Shipped   => 'info',
+            self::Pending => 'warning',
+            self::Paid => 'success',
             self::Cancelled => 'danger',
         };
     }
@@ -188,10 +181,8 @@ enum OrderStatus: string implements HasLabel, HasColor, HasIcon
     public function getIcon(): string|Heroicon
     {
         return match ($this) {
-            self::Pending   => Heroicon::Clock,
-            self::Approved  => Heroicon::CheckCircle,
-            self::Paid      => Heroicon::CheckCircle,
-            self::Shipped   => Heroicon::Truck,
+            self::Pending => Heroicon::Clock,
+            self::Paid => Heroicon::CheckCircle,
             self::Cancelled => Heroicon::XCircle,
         };
     }
@@ -261,7 +252,7 @@ Filament auto-checks model policies only for **standard CRUD**. Anything you add
   ```
 
 - **MUST** run authorization **before** side effects. Don't do work that shouldn't happen for an unauthorized user in `boot()` or per-property hydrate hooks — those can fire *before* the policy abort. Put the side effect inside the authorized action/method.
-- **MUST** authorize a custom Livewire component or page on every request, not only in `mount()`, which runs once. See `app/Filament/Resources/Pages/CLAUDE.md` → "Authorize every request, not only `mount()`".
+- **MUST** authorize a plain Livewire component, and any record-level check a page adds itself, on every request, not only in `mount()`, which runs once. A Filament page's static `canAccess()` already re-runs on every request: do not add a `hydrate()` that repeats it. See `app/Filament/Resources/Pages/CLAUDE.md` → "Authorize every request, not only `mount()`".
 - Inline columns (`ToggleColumn`/`SelectColumn`/`TextInputColumn`) check only `->disabled()`, never the policy — `->disabled(fn ($record) => ! auth()->user()->can('update', $record))` (already required in Tables).
 
 ### One record, every surface
@@ -288,31 +279,7 @@ Custom columns, custom entries, `ViewColumn`/`ViewEntry`, and any `->view(...)` 
 
 ## Controls that depend on setup
 
-A control whose effect depends on setup the user may not have done yet (business hours, a connected integration, a default assignee, a payer) is a trap if it can be switched on anyway: the user enables it, nothing happens, and they never learn why. Think one step past the control: what does the user hit next, and can the UI take them there?
-
-- **MUST** disable the control, or just its "turn on" direction, while the prerequisite is missing. A control that is already on stays free to turn off, so the user is never stuck with it.
-- **MUST** refuse the same write server-side (`afterStateUpdated`, the action's `action()`); `disabled()` is presentation only.
-- **MUST** name the missing prerequisite next to the control (helper text, hint, tooltip) and link to the exact place it is fixed, with the page URL plus the section's `->id()` as an anchor. Show the link only when the viewer may open that page (`Page::canAccess()`); otherwise name the prerequisite as plain text.
-- **SHOULD** change the copy once the prerequisite exists ("Uses your business hours.", still linked) rather than leaving a warning that is no longer true.
-- **MUST** treat requirement copy you write or review ("needs X", "requires X", "set X first", "only works when X") as a to-do: make the UI enforce the requirement and link to X. Passive copy that leaves the user to find X is not done.
-
-```php
-Toggle::make('after_hours_replies')
-    ->disabled(fn (): bool => ! $this->hasBusinessHours() && ! $this->isOn())
-    ->helperText(fn (): HtmlString => new HtmlString(
-        'Answers texts while the practice is closed. Set your '
-        . '<a href="' . e(ManageLeadSettings::getUrl() . '#business-hours') . '" class="fi-link underline">business hours</a>'
-        . ' to turn this on.'
-    ))
-    ->afterStateUpdated(function (Toggle $component, bool $state): void {
-        if ($state && ! $this->hasBusinessHours()) {
-            $component->state(false); // the boundary, not just the disabled UI
-
-            return;
-        }
-        // …write
-    });
-```
+A control whose effect depends on setup the user may not have done yet (business hours, a connected integration, a default assignee) **MUST** stay disabled while the prerequisite is missing, refuse the same write server-side, and name the prerequisite with a link to where it is fixed. See `app/Filament/Resources/Schemas/CLAUDE.md` → "Controls that depend on setup".
 
 ## Labels & localization
 
@@ -322,60 +289,6 @@ Filament labels — component `->label()`, modal headings, `Notification` titles
 - **MUST**, when the panel is localized, pass `__('...')` (or call `->translateLabel()`) and lift it to a **global** default rather than sprinkling `__()` at every call site — e.g. `Field::configureUsing(fn (Field $field) => $field->translateLabel())`. See `app/Providers/Filament/CLAUDE.md` → "Global defaults via `configureUsing`".
 - The **Title Case** convention (`app/Filament/Actions/CLAUDE.md`) governs the *rendered* text — apply it to the translation value when localized.
 
-## Notifications (cross-cutting)
+## Notifications
 
-`Filament\Notifications\Notification` is the canonical feedback surface for Resource pages, Actions, Widgets, custom Pages, and queued Jobs.
-
-```php
-use Filament\Notifications\Notification;
-
-Notification::make()
-    ->title('Order approved')
-    ->body("Reference #{$order->reference}")
-    ->success()
-    ->send();
-```
-
-Rules:
-
-- **MUST** call `->send()` — without it the notification is built and discarded silently. Easiest bug to ship.
-- **MUST** use `->title(...)` (short) + `->body(...)` (detail). One-line titles read better in stacked toasts.
-- **MUST** mark recoverable-error notifications `->persistent()` — auto-dismiss hides the actual problem.
-- **PREFER** `->send()` (toast) for ephemeral feedback; **PREFER** `->sendToDatabase($user)` for events the admin should find later (new comment, mention, export ready).
-- **AVOID** "Saved!" notifications on routine CRUD; Filament already ships a default save notification — duplicating it just adds noise. Override `getSavedNotification()` on the page if you need to customise.
-
-### Database notification center
-
-Enable on the `PanelProvider`:
-
-```php
-->databaseNotifications()
-->databaseNotificationsPolling('60s') // or null to disable polling
-```
-
-- **MUST NOT** poll the notification center faster than 30s in production — every poll runs a query per logged-in admin.
-- **MUST** provide the database notifications table before enabling `->databaseNotifications()`. If its migration is absent, generate it with `php artisan make:notifications-table`, review it, and migrate.
-
-### Inside an Action
-
-```php
-->databaseTransaction()
-->action(function (Order $record, \Filament\Actions\Action $action): void {
-    try {
-        app(ApproveOrderAction::class)->handle($record);
-        Notification::make()->title('Approved')->success()->send();
-    } catch (DomainException $e) {
-        Notification::make()
-            ->title('Approval failed')
-            ->body($e->getMessage())
-            ->danger()
-            ->persistent()
-            ->send();
-
-        $action->halt(shouldRollBackDatabaseTransaction: true);
-    }
-});
-```
-
-- **MUST** keep multi-write mutations atomic. If an expected domain failure is caught inside a transactional action, notify and call `$action->halt(shouldRollBackDatabaseTransaction: true)` (or cancel with the same flag). Returning normally, or halting without the flag, commits the action transaction. An alternative is to catch outside the business action's transaction after it has rolled back.
-- **PREFER** catching expected domain failures for user feedback; unexpected exceptions should reach the application's exception handler.
+`Filament\Notifications\Notification` is the feedback surface for pages, actions, widgets and queued jobs. **MUST** call `->send()`: without it the notification is built and discarded silently. See `app/Filament/Actions/CLAUDE.md` → "Notifications" for the rules and the transactional example, and `app/Providers/Filament/CLAUDE.md` → "Notification center" for database notifications.

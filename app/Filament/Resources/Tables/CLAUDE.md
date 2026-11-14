@@ -422,7 +422,7 @@ Filament ships a generic empty state (a faded icon + "No records"), but it reads
 
 ```php
 ->emptyStateIcon(Heroicon::OutlinedShoppingCart)
-->emptyStateHeading('No orders yet')
+->emptyStateHeading('No Orders Yet')
 ->emptyStateDescription('Orders placed by customers will appear here. Create one to get started.')
 ->emptyStateActions([
     CreateAction::make()
@@ -431,9 +431,10 @@ Filament ships a generic empty state (a faded icon + "No records"), but it reads
 ```
 
 - **MUST** set all three of `->emptyStateHeading()`, `->emptyStateDescription()`, `->emptyStateIcon()`. A heading alone is not enough — the description tells the admin *why* it's empty and *what to do*.
+- **SHOULD** write the heading in Title Case and the description in sentence case; see `app/Filament/Actions/CLAUDE.md` → "Rules".
 - **SHOULD** pick an `emptyStateIcon` that matches the model (reuse the resource's nav icon) so the empty table still reads as "Orders."
 - **SHOULD** add `->emptyStateActions([CreateAction::make()])` when the admin can act from here — but gate it on the policy so you don't dangle a button they can't use.
-- **PREFER** distinguishing "never had any" from "filtered to nothing": when the table is filtered, an `emptyStateHeading` like "No orders match these filters" with a description nudging the admin to clear filters beats the generic create prompt. Branch with a closure reading the active filters/`$livewire` if the distinction matters.
+- **PREFER** distinguishing "never had any" from "filtered to nothing": when the table is filtered, an `emptyStateHeading` like "No Orders Match These Filters" with a description nudging the admin to clear filters beats the generic create prompt. Branch with a closure reading the active filters/`$livewire` if the distinction matters.
 - This rule applies equally to **relation manager** tables and **table widgets** — same `emptyState*` methods, same bar. Use `->emptyStateActions([])` to suppress the default create button on read-only relations.
 
 ## Never spread integer-keyed option maps

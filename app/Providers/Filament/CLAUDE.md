@@ -269,12 +269,15 @@ Select::make('customer_id')
 
 ### Notification center
 
+Enable on the `PanelProvider`:
+
 ```php
 ->databaseNotifications()
-->databaseNotificationsPolling('60s')
+->databaseNotificationsPolling('60s') // or null to disable polling
 ```
 
-Run `php artisan notifications:table && php artisan migrate` before enabling — see `app/Filament/CLAUDE.md`.
+- **MUST NOT** poll the notification center faster than 30s in production — every poll runs a query per logged-in admin.
+- **MUST** provide the database notifications table before enabling `->databaseNotifications()`. If its migration is absent, generate it with `php artisan make:notifications-table`, review it, and migrate.
 
 ## Theme + colors
 

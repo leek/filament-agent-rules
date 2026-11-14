@@ -37,7 +37,7 @@ Action::make('approve')
     ->authorize('approve')
     ->visible(fn (Order $record) => $record->status === OrderStatus::Pending)
     ->requiresConfirmation()
-    ->modalHeading('Approve order?')
+    ->modalHeading('Approve Order?')
     ->modalDescription(fn (Order $record) => "Approve order #{$record->reference}?")
     ->modalIcon(Heroicon::OutlinedCheckCircle)
     ->modalIconColor('success')
@@ -53,7 +53,7 @@ Action::make('approve')
 - **MUST** authorize every custom action with `->authorize('ability')` or an authorization callback, wherever it is declared: an extracted `Action` subclass, `getHeaderActions()`, a relation manager's table, a schema component. Filament supplies a record-bound action's record to the policy automatically. See "Authorization" for what Filament does and does not check for you.
 - **SHOULD** pair every long-running action with a `Notification` in `->after(...)` so the admin gets explicit success/failure feedback.
 - **AVOID** chaining `->action()` AND `->schema()` AND `->after()` with heavy logic — extract to a dedicated class once you cross ~15 lines.
-- **SHOULD** write every action/button `->label(...)` in **Title Case** — capitalize each major word ("Request Documents", "Mark Verified", "Convert to Client"); lowercase only interior articles / short conjunctions / short prepositions (a, an, the, and, or, but, of, to, in, for). Applies to row, header, and bulk actions and any clickable label. When the panel is localized, pass `__('...')` instead and apply Title Case to the translation value — see `app/Filament/CLAUDE.md` → "Labels & localization".
+- **SHOULD** write every action/button `->label(...)` in **Title Case** — capitalize each major word ("Request Documents", "Mark Verified", "Convert to Client"); lowercase only interior articles / short conjunctions / short prepositions (a, an, the, and, or, but, of, to, in, for). Applies to row, header, and bulk actions and any clickable label. Headings follow the same rule: `->modalHeading()`, `->emptyStateHeading()`, `Section` and tab headings, page titles ("Approve Order?", "No Orders Yet"). Descriptions, helper text and notification bodies stay sentence case. Name a modal's submit button after what it does with `->modalSubmitActionLabel('Add Goal')`; the default reads "Submit". When the panel is localized, pass `__('...')` instead and apply Title Case to the translation value — see `app/Filament/CLAUDE.md` → "Labels & localization".
 
 ## Authorization
 
@@ -88,7 +88,7 @@ When the action needs input:
 ```php
 Action::make('reject')
     ->schema([
-        Textarea::make('reason')->required()->minLength(10),
+        Textarea::make('reason')->required()->minLength(10)->maxLength(1000), // fits the column it is saved to
     ])
     ->action(function (Order $record, array $data): void {
         app(RejectOrderAction::class)->handle($record, reason: $data['reason']);
@@ -97,6 +97,7 @@ Action::make('reject')
 
 - **MUST** validate via the `->schema([...])` definition rather than re-validating inside `->action(...)`. Filament rejects the modal submit on validation failure.
 - **MUST** configure modal input with `->schema([...])`, not `->form([...])`.
+- **MUST** cap a modal's free-text field at the length of the column the Action writes it to, or widen that column to `text`. See `app/Filament/Resources/Schemas/CLAUDE.md` → "Units and length".
 - **MUST** add `x-on:keydown.enter.prevent` to a plain text or search input rendered inside the modal (a custom Blade field, a picker's filter box). The modal is one `<form>`, so Enter in that input runs the modal's submit action: a search keystroke sends the email. See `app/Filament/Pages/CLAUDE.md` for the same trap in a page form.
 
 ## Bulk actions
@@ -172,7 +173,7 @@ $table->recordActions([
 
 ## Halting / cancelling
 
-Inside an `->action(...)` callback, inject the Action instance and bail out with `$action->halt()` (keep modal open) or `$action->cancel()` (close it). If writes must be rolled back, pass `shouldRollBackDatabaseTransaction: true`; see the hub's "Inside an Action" example:
+Inside an `->action(...)` callback, inject the Action instance and bail out with `$action->halt()` (keep modal open) or `$action->cancel()` (close it). If writes must be rolled back, pass `shouldRollBackDatabaseTransaction: true`; see "Notifications" → "Inside an Action" below:
 
 ```php
 ->action(function (Order $record, Action $action): void {
@@ -205,7 +206,7 @@ DeleteAction::make()
 Action::make('approve')
     ->modalIcon(Heroicon::OutlinedCheckCircle)
     ->modalIconColor('success')
-    ->modalHeading('Approve order?');
+    ->modalHeading('Approve Order?');
 
 Action::make('export')
     ->modalIcon(Heroicon::OutlinedArrowDownTray)
@@ -322,25 +323,58 @@ public function restoreOrder(int $orderId): void
 
 Use `Filament\Actions\*` for all current action classes (`Action`, `BulkAction`, `CreateAction`, `EditAction`, `DeleteAction`, `ImportAction`, `ExportAction`, groups, restore/force-delete variants). Do not import old table/form scoped action namespaces.
 
-## Notifications inside actions
+## Notifications
+
+`Filament\Notifications\Notification` is the canonical feedback surface for Resource pages, Actions, Widgets, custom Pages, and queued Jobs.
+
+```php
+use Filament\Notifications\Notification;
+
+Notification::make()
+    ->title('Order approved')
+    ->body("Reference #{$order->reference}")
+    ->success()
+    ->send();
+```
+
+Rules:
+
+- **MUST** call `->send()` — without it the notification is built and discarded silently. Easiest bug to ship.
+- **MUST** use `->title(...)` (short) + `->body(...)` (detail). One-line titles read better in stacked toasts.
+- **MUST** mark recoverable-error notifications `->persistent()` — auto-dismiss hides the actual problem.
+- **PREFER** `->send()` (toast) for ephemeral feedback; **PREFER** `->sendToDatabase($user)` for events the admin should find later (new comment, mention, export ready).
+- **AVOID** "Saved!" notifications on routine CRUD; Filament already ships a default save notification — duplicating it just adds noise. Override `getSavedNotification()` on the page if you need to customise.
+
+For a stock success or failure toast, set the title on the action:
 
 ```php
 ->successNotificationTitle('Order approved')
 ->failureNotificationTitle('Failed to approve')
 ```
 
-Or for fully custom:
+### Inside an Action
 
 ```php
-->action(function (Order $record): void {
+->databaseTransaction()
+->action(function (Order $record, \Filament\Actions\Action $action): void {
     try {
         app(ApproveOrderAction::class)->handle($record);
-        Notification::make()->success()->title('Approved')->send();
+        Notification::make()->title('Approved')->success()->send();
     } catch (DomainException $e) {
-        Notification::make()->danger()->title('Failed')->body($e->getMessage())->send();
+        Notification::make()
+            ->title('Approval failed')
+            ->body($e->getMessage())
+            ->danger()
+            ->persistent()
+            ->send();
+
+        $action->halt(shouldRollBackDatabaseTransaction: true);
     }
 });
 ```
+
+- **MUST** keep multi-write mutations atomic. If an expected domain failure is caught inside a transactional action, notify and call `$action->halt(shouldRollBackDatabaseTransaction: true)` (or cancel with the same flag). Returning normally, or halting without the flag, commits the action transaction. An alternative is to catch outside the business action's transaction after it has rolled back.
+- **PREFER** catching expected domain failures for user feedback; unexpected exceptions should reach the application's exception handler.
 
 ## Import / Export actions
 
@@ -388,6 +422,8 @@ Wire into the table:
 ])
 ```
 
+- **MUST** keep every exported cell under 32,767 characters, the XLSX cell limit. One longer value (a long note, a rich-text body, a joined list) throws `InvalidArgumentException` in the writer and fails the whole queued export. Cap long-text columns with `ExportColumn::make('notes')->limit(32000)`.
+- **MUST** turn block boundaries into line breaks before stripping HTML from a rich-text column (`</p>`, `<br>`, `</li>` → `"\n"`, then `strip_tags()`). A bare `strip_tags()` glues paragraphs together: "Called mom" + "Left VM" exports as "Called momLeft VM".
 - Filament imports use job batches for all sizes. Asynchronous completion sends a database notification; sync imports send a persistent session notification. Email is not the default. **MUST** configure a queue worker for asynchronous processing; a sync queue connection runs jobs synchronously.
 - **MUST** install the job-batch, database-notification, and Filament action tables before imports/exports. If these migrations are not already present, generate/publish them and review them before migrating:
 
