@@ -376,6 +376,7 @@ For every Resource, **MUST** cover:
 - [ ] List page renders
 - [ ] List page lists factory-created records
 - [ ] Every dot-notation column renders without N+1
+- [ ] Every aggregate column (`withSum`, `withCount`): query count stays flat as rows grow, with fixtures that include rows with **no** related records (a NULL aggregate is where per-row fallback queries hide)
 - [ ] Search / sort / filter on at least one column each
 - [ ] Create with valid data persists
 - [ ] Create with invalid data surfaces form errors

@@ -14,7 +14,7 @@ paths:
 
 The rules most tasks here need, each with the section that explains it. Read this list first; read a section in full only when your task touches it.
 
-- **MUST** delegate the work to an `app/Actions/` class; the Filament action is glue ("Rules").
+- **MUST** delegate the work to an `app/Actions/` class that throws its own exceptions; the Filament action converts them to field errors or notifications ("Rules").
 - **MUST** `->authorize('ability')` every custom action, inside `setUp()` when the action is extracted ("Authorization").
 - **MUST** split who from when: the permission in `->authorize()`, the state precondition enforced by the business action under its lock. `->visible()` only decides what is offered ("Authorization").
 - **MUST** `->requiresConfirmation()` on destructive actions, and validate modal input in `->schema([...])`, not inside `->action()` ("Rules", "Form inside an action").
@@ -63,6 +63,7 @@ Action::make('approve')
 - **MUST** call `->requiresConfirmation()` on any destructive or irreversible action.
 - **MUST** set `->modalIcon(...)` + `->modalIconColor(...)` on modal/slide-over actions unless the project already does this globally via `configureUsing`. Use intent colors: `danger`, `success`, `warning`, `primary`.
 - **MUST** delegate work via `->action(fn ($record) => app(SomeAction::class)->handle($record))` — never inline business logic; Filament Actions are presentational glue.
+- **MUST** have the business action throw its own exception for a rule violation (`InsufficientStock`, carrying the field it concerns when there is one), and convert it in the Filament layer: a danger notification plus `$action->halt()`, or a field error. On a resource page the key is `data.{field}`; on an action modal it is `"mountedActions.{$action->getNestingIndex()}.data.{$e->field}"`. **MUST NOT** throw a `ValidationException` keyed by a Livewire path (`data.*`) from an `app/Actions/` class: it ties the domain to one form and breaks every other caller.
 - **MUST** authorize every custom action with `->authorize('ability')` or an authorization callback, wherever it is declared: an extracted `Action` subclass, `getHeaderActions()`, a relation manager's table, a schema component. Filament supplies a record-bound action's record to the policy automatically. See "Authorization" for what Filament does and does not check.
 - **SHOULD** pair every long-running action with a `Notification` in `->after(...)` so the admin gets explicit success/failure feedback.
 - **AVOID** chaining `->action()` AND `->schema()` AND `->after()` with heavy logic — extract to a dedicated class past ~15 lines.
@@ -93,6 +94,7 @@ So:
       ->authorize('refund')                                     // who: policy only
       ->visible(fn (Order $record, Action $action): bool =>      // when: offer only where it applies,
           $record->isOpen() || static::isMountedFor($action, $record)) // but let an open modal submit
+      ->mountUsing(fn (Order $record, Action $action) => $record->isOpen() || $action->cancel()) // refuse to open on a wrong-state record
       ->requiresConfirmation()
       ->action(function (Order $record): void {
           try {
@@ -118,7 +120,7 @@ So:
   }
   ```
 
-  A crafted request can mount the action on any record it can load; that is safe because the business action, not the visibility callback, is the guard. When no failure message is needed, `->visible($record->isOpen())` alone is enough: the stale call is dropped and the business action's check still holds.
+  Filament adds the action to `mountedActions` *before* it checks visibility, so `isMountedFor()` is already true while the action is being opened. Without the `mountUsing()` check, a crafted request opens the modal on a record in the wrong state; the business action still refuses on submit, because it, not the visibility callback, is the guard. When no failure message is needed, `->visible($record->isOpen())` alone is enough: the stale call is dropped and the business action's check still holds.
 
 - **MUST** check the destination's ability when the action redirects after success (create, then open the edit page): gate the action on it, or redirect users who lack it somewhere they may go.
 - **MUST** require the `view` ability of every model an action lists, previews or lets the user pick, not only the ability on the record it is attached to. A picker opened from an order that lists documents needs the document `view` check before it opens.

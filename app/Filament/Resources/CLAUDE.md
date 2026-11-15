@@ -155,6 +155,7 @@ public static function getEloquentQuery(): Builder
 - **MUST** eager-load every relation referenced in table columns (`->state(fn ($record) => $record->customer->name)`).
 - **MUST NOT** rely on lazy loading inside a table — Filament renders 25+ rows per page; N+1 is immediate.
 - **MUST** compute per-row aggregates (a sum of active holds, a count, a latest date) in this query with `withSum()` / `withCount()` / a subselect. A column `->state(fn ($record) => $record->things()->sum(...))` is a query per row, and `preventLazyLoading()` does not catch it. Policy checks run per row too: memoize any lookup they make, such as the user's role in the current tenant.
+- **MUST** read a `withSum()` / `withAvg()` / `withMax()` result as `(int) ($record->things_sum_quantity ?? 0)`. The aggregate is NULL when no related row matches, so an accessor that falls back to a query on NULL (`$this->things_sum_quantity ?? $this->things()->sum('quantity')`) runs one query per row with no related rows. Never fall back to a query in a value the table reads.
 
 ## Global search
 

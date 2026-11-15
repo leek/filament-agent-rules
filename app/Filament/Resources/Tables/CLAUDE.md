@@ -150,6 +150,18 @@ $table
 
 - **MUST NOT** use `BadgeColumn`; use `TextColumn::make(...)->badge()->color(fn ($state) => ...)` instead.
 
+- **MUST** show the *effective* status when a status lapses with time (a `pending` row past its `expires_at`, a `trial` past its end date) and a scheduled job only catches up later. Badge the computed state, and make the status filter match it, so the table never shows a lapsed hold as Pending:
+
+  ```php
+  TextColumn::make('status')->badge()
+      ->state(fn (Reservation $record): ReservationStatus => $record->effectiveStatus()); // Expired once expires_at has passed
+
+  SelectFilter::make('status')->options(ReservationStatus::class)
+      ->query(fn (Builder $query, array $data) => filled($data['value'])
+          ? $query->whereEffectiveStatus(ReservationStatus::from($data['value'])) // model scope, same rule as effectiveStatus()
+          : $query);
+  ```
+
 - **MUST** authorize inline-editable columns (`ToggleColumn`, `SelectColumn`, etc.) — Filament does NOT auto-check the policy's `update` ability.
 
 ```php
@@ -273,7 +285,7 @@ Filter::make('created_at')
     ]);
 ```
 
-- **MUST** index columns referenced in filters — they run as part of the index query.
+- **MUST** index columns referenced in filters — they run as part of the index query. In a tenant panel, lead the index with the tenant key: `(organization_id, status)`, not `status` alone.
 - Filters open in a dropdown by default. To show them above the table, pass a layout as the second argument: `->filters([...], layout: FiltersLayout::AboveContent)` (`Filament\Tables\Enums\FiltersLayout`).
 - **MUST** add `->indicateUsing(...)` to custom filters with form state so admins can see why records disappeared and clear individual fields from the active-filter chips.
 

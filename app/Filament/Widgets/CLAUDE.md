@@ -15,7 +15,7 @@ The rules most tasks here need, each with the section that explains it. Read thi
 - **MUST** scope every widget query to the current tenant, and authorize with `canView()` ("Authorization").
 - **MUST** keep queries constant per render: aggregate in SQL, eager-load table-widget relations ("Stats overview", "Table widget").
 - **MUST** cache aggregates over 10k rows, with panel, tenant, user and filter context in the key ("Stats overview").
-- **MUST** delegate non-trivial calculation to an `app/Actions/` class ("Rules").
+- **MUST** delegate non-trivial or reused calculation to an `app/Actions/` class; a few aggregate queries may stay in the widget ("Rules").
 - **MUST** wrap a custom widget view in `<x-filament-widgets::widget>` and return data from `getViewData()` ("Custom widget").
 - **MUST NOT** poll faster than 10s in production ("Polling").
 
@@ -161,7 +161,7 @@ final class RevenueChart extends ChartWidget
 }
 ```
 
-- **MUST** delegate data assembly to an `app/Actions/` class — keep the widget a thin filter→data adapter.
+- **MUST** delegate non-trivial data assembly (trend building, joins across several models, logic another surface reuses) to an `app/Actions/` class. A few tenant-scoped aggregate queries may stay in the widget; an Action that only wraps them is ceremony.
 - **SHOULD** default to `'week'` on most dashboards; `'today'` misleads on slow-traffic days.
 
 ## Custom widget (Blade view)
@@ -277,7 +277,7 @@ public static function canView(): bool
 
 ## Rules
 
-- **MUST** delegate non-trivial calculation to an `app/Actions/` class — widgets are presentational.
+- **MUST** delegate non-trivial or reused calculation to an `app/Actions/` class — widgets are presentational. A few direct aggregate queries are not non-trivial.
 - **MUST** cache or pre-compute any aggregate that scans >10k rows.
 - **SHOULD** use `$isLazyLoaded = true` for any widget that hits the DB; the dashboard renders the skeleton immediately and loads each widget independently.
 - **AVOID** raw SQL in widgets — wrap a query object or trend helper instead.
