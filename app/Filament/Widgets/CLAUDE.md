@@ -8,6 +8,17 @@ paths:
 
 **Purpose:** dashboard cards — stats, charts, recent-records tables. Appear on the panel Dashboard and (optionally) on Resource list pages.
 
+## Checklist
+
+The rules most tasks here need, each with the section that explains it. Read this list first; read a section in full only when your task touches it.
+
+- **MUST** scope every widget query to the current tenant, and authorize with `canView()` ("Authorization").
+- **MUST** keep queries constant per render: aggregate in SQL, eager-load table-widget relations ("Stats overview", "Table widget").
+- **MUST** cache aggregates over 10k rows, with panel, tenant, user and filter context in the key ("Stats overview").
+- **MUST** delegate non-trivial calculation to an `app/Actions/` class ("Rules").
+- **MUST** wrap a custom widget view in `<x-filament-widgets::widget>` and return data from `getViewData()` ("Custom widget").
+- **MUST NOT** poll faster than 10s in production ("Polling").
+
 ## Where they live
 
 ```
@@ -155,7 +166,7 @@ final class RevenueChart extends ChartWidget
 
 ## Custom widget (Blade view)
 
-A Blade-backed widget is the **last** resort — see the hub's "Prefer built-in components over custom Blade" ladder. First confirm a stats / chart / table widget can't do it, and that the content isn't just `Text`/`Icon`/`Image`/`UnorderedList` primes or a `Callout` rendered through a schema. Only when the markup is bespoke, drop to a plain `Widget` with a Blade view:
+A Blade-backed widget is the **last** resort — see the hub's "Prefer built-in components over custom Blade" ladder and `resources/views/filament/CLAUDE.md`. First confirm a stats / chart / table widget can't do it, and that the content isn't just `Text`/`Icon`/`Image`/`UnorderedList` primes or a `Callout` rendered through a schema. Only when the markup is bespoke, drop to a plain `Widget` with a Blade view:
 
 ```php
 final class TasksWidget extends Widget

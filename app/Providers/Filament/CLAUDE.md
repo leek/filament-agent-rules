@@ -11,6 +11,16 @@ paths:
 - **`{PanelId}PanelProvider`** (`app/Providers/Filament/`) — boots a panel: discovery paths, theme, middleware, plugins, tenancy, auth, navigation.
 - **`FilamentServiceProvider`** (`app/Providers/FilamentServiceProvider.php`) — registers **app-wide component defaults** via `configureUsing()`.
 
+## Checklist
+
+The rules most tasks here need, each with the section that explains it. Read this list first; read a section in full only when your task touches it.
+
+- **MUST** read the project's `configureUsing` defaults before building any component, and set shared defaults there once ("Global defaults via `configureUsing`").
+- **MUST** register each panel in `bootstrap/providers.php`; keep the provider wiring only ("Rules").
+- **MUST**, with tenancy, implement `HasTenants` and `canAccessTenant()`, use `->scopedUnique()` / `->scopedExists()`, and scope business-action queries to the tenant ("Tenancy").
+- **MUST** remove the placeholder `FilamentInfoWidget` once the dashboard has real widgets ("Rules").
+- **MUST** keep the standard middleware stack, and call `->databaseTransactions()` on panels with multi-step actions ("Middleware", "Panel-level safety + UX options").
+
 ## Global defaults via `configureUsing`
 
 A project overrides Filament's stock component defaults **once, globally** — not per call site — with `Component::configureUsing()` in a service provider's `boot()`, conventionally a dedicated `app/Providers/FilamentServiceProvider.php` (registered in `bootstrap/providers.php`).
@@ -91,7 +101,6 @@ final class AdminPanelProvider extends PanelProvider
             ->pages([Dashboard::class])
             ->widgets([
                 Widgets\AccountWidget::class,
-                Widgets\FilamentInfoWidget::class,
             ])
             ->middleware([
                 EncryptCookies::class,
@@ -99,7 +108,7 @@ final class AdminPanelProvider extends PanelProvider
                 StartSession::class,
                 AuthenticateSession::class,
                 ShareErrorsFromSession::class,
-                VerifyCsrfToken::class,
+                PreventRequestForgery::class, // VerifyCsrfToken before Laravel 13
                 SubstituteBindings::class,
                 DisableBladeIconComponents::class,
                 DispatchServingFilamentEvent::class,
@@ -114,6 +123,7 @@ final class AdminPanelProvider extends PanelProvider
 - **MUST** register every panel in `bootstrap/providers.php` (L11+) — `$panel->default()` only chooses which panel handles the `/` redirect; it doesn't auto-register.
 - **MUST** keep one PanelProvider per panel; don't multiplex panels in one provider.
 - **MUST NOT** put business logic in the PanelProvider — it's wiring only.
+- **MUST** remove the installer's placeholder `FilamentInfoWidget` from `->widgets()` when the dashboard gets real widgets. Keep `AccountWidget` only if the panel wants it.
 
 ## Discovery paths
 
@@ -172,6 +182,7 @@ final class User extends Authenticatable implements FilamentUser
 
 - Filament registers a tenant global scope for models with tenant-aware resources in the active panel, once the tenant is identified. **MUST** define the ownership relationship those resources use. Models without a tenant-aware resource in that panel need an additional middleware scope or explicit `whereBelongsTo(Filament::getTenant())` constraints.
 - **MUST** supply tenant context and scope explicitly in jobs, outside the tenant panel, and before tenant identification. Removing global scopes can remove tenancy protection too.
+- **MUST** constrain a business action's own queries to the record's tenant, the locked re-read included (`->whereBelongsTo($tenant)` or `->where('organization_id', $record->organization_id)` before `lockForUpdate()`). Filament's scope protects the record the page resolved, not the queries an `app/Actions/` class runs; an action called from a job, a command or a second panel has no Filament scope at all.
 - **MUST** authorize tenant access via `canAccessTenant(Model $tenant)` on the User model:
 
   ```php
@@ -317,7 +328,7 @@ php artisan make:filament-theme admin
 
 ## Middleware
 
-- **MUST** include the standard middleware stack shown above. Removing `AuthenticateSession` or `VerifyCsrfToken` breaks the panel in subtle ways.
+- **MUST** include the standard middleware stack shown above. Removing `AuthenticateSession` or `PreventRequestForgery` (`VerifyCsrfToken` before Laravel 13) breaks the panel in subtle ways.
 - **SHOULD** add custom middleware via `->middleware([...], isPersistent: true)` rather than wedging it into the default group.
 - **MUST** register any middleware that establishes **auth / permission / tenant context** (e.g. setting the active team for `spatie/laravel-permission`, resolving the current tenant) as **persistent** — `->middleware([...], isPersistent: true)`, `->tenantMiddleware([...], isPersistent: true)`, or `->persistentMiddleware([...])`. Panel `middleware()` / `authMiddleware()` run **only on full-page loads**; Livewire's `/livewire/update` routes bypass them. A non-persistent context middleware therefore leaves the context unset on every action click, so policies resolve empty and Filament **silently** drops the now-unauthorized action. Symptom: a button renders on page load then vanishes when clicked, with nothing logged.
 

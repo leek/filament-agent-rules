@@ -8,6 +8,15 @@ paths:
 
 **Purpose:** manage a model's related records (HasMany, BelongsToMany, MorphMany) from inside the parent's Edit/View page, without leaving for the related Resource.
 
+## Checklist
+
+The rules most tasks here need, each with the section that explains it. Read this list first; read a section in full only when your task touches it.
+
+- **MUST** name it `{Relation}RelationManager` and set `$relationship` to the parent's relation method exactly ("Naming", "Rules").
+- **MUST** declare `$recordTitleAttribute`, and scope queries through the relation, never `Model::query()` ("Rules").
+- **MUST** `->authorize()` every custom action in the manager's table, and gate deep links on `canViewForRecord()` ("Rules").
+- **MUST** expose pivot fields with `withPivot(...)` on both sides of a BelongsToMany ("BelongsToMany — attach vs create").
+
 ## Where they live
 
 Per-resource, under `app/Filament/Resources/{Parents}/RelationManagers/`:

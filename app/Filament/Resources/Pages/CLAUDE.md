@@ -8,6 +8,17 @@ paths:
 
 **Purpose:** the Livewire pages backing each Resource route (`index`, `create`, `view`, `edit`, plus any custom pages).
 
+## Checklist
+
+The rules most tasks here need, each with the section that explains it. Read this list first; read a section in full only when your task touches it.
+
+- **MUST** keep pages thin, delegate to `app/Actions/`, and wrap multi-step persistence in a transaction ("Rules", "Lifecycle hooks").
+- **MUST** stop an Edit form from overwriting a column another surface changes: compare the loaded value against the locked row ("Edit forms must not overwrite a value another surface changes").
+- **MUST** `->authorize()` every custom header action ("Header actions on ListRecords").
+- **MUST** authorize an embedded Livewire component on every request and mark identifiers `#[Locked]` ("Custom page content").
+- **MUST** redirect only to a page the resource registers ("Redirect after save").
+- **MUST** index the column each list tab filters on ("Tabs on ListRecords").
+
 ## Where they live
 
 Each Resource owns its pages under `app/Filament/Resources/{Models}/Pages/`:
@@ -80,9 +91,44 @@ Hook map:
 - **SHOULD** prefer `afterCreate()` / `afterSave()` for "fire-and-forget" side effects (notifications, queued jobs).
 - **MUST** call `->afterCommit()` on any job dispatched from inside `handleRecordCreation` (transaction safety).
 
+### Edit forms must not overwrite a value another surface changes
+
+An Edit form posts back the absolute values it loaded. When another surface changes the same column while the form is open (a stock `adjust` action, a balance top-up, a counter incremented by a job), saving the form silently overwrites that change: a lost update. Locking at save time does not help, because the stale value comes from the form.
+
+- **PREFER** not putting such a column on the Edit form at all: change it through a delta action (`adjust`, `topUp`) whose business action applies the delta under a lock.
+- When the column must be editable, **MUST** compare the value the form was filled with against the locked row and refuse the save when it moved:
+
+  ```php
+  #[\Livewire\Attributes\Locked]
+  public ?int $loadedQuantity = null;
+
+  protected function afterFill(): void
+  {
+      $this->loadedQuantity = $this->record->quantity_on_hand;
+  }
+
+  protected function handleRecordUpdate(Model $record, array $data): Model
+  {
+      try {
+          // Locks the row, re-reads it, throws StaleValue when quantity_on_hand !== $expected.
+          $updated = app(UpdateInventoryItemAction::class)->handle($record, $data, expected: $this->loadedQuantity);
+      } catch (StaleValue $e) {
+          throw ValidationException::withMessages([
+              'data.quantity_on_hand' => "Changed to {$e->current} since you opened this page. Reload and try again.",
+          ]);
+      }
+
+      $this->loadedQuantity = $updated->quantity_on_hand; // the page stays open: a second save compares against this
+
+      return $updated;
+  }
+  ```
+
+  `#[Locked]` keeps the browser from rewriting the loaded value. Refresh it from the model the business action returns, not from `$this->record` in `afterSave()`: Filament does not replace `$this->record` with the returned model, so a second save from the same page would be refused. The comparison belongs in the business action, under the same lock as the write. For a whole record rather than one column, compare `updated_at` the same way.
+
 ## Custom page content — embed a Livewire component, don't rebuild the page
 
-When an Edit/View/Create page needs something Filament can't express out of the box (a real-time status sidebar, a bespoke chart, a custom approval widget), **don't** hand-build a fully custom Livewire page: almost always only **one or two pieces** are custom. Keep the standard Filament page — its form, relation managers, save pipeline, validation, notifications, and authorization — and embed the custom piece as a Livewire component via the page's `content()` schema. (Cross-cutting rule: hub → "Prefer embedding a Livewire component over a custom page".)
+When an Edit/View/Create page needs something Filament can't express out of the box (a real-time status sidebar, a bespoke chart, a custom approval widget), **don't** hand-build a fully custom Livewire page: almost always only **one or two pieces** are custom. Keep the standard Filament page — its form, relation managers, save pipeline, validation, notifications, and authorization — and embed the custom piece as a Livewire component via the page's `content()` schema. (Cross-cutting rule: hub → "Prefer built-in components over custom Blade".)
 
 ### Override `content()` to lay out the page
 
@@ -176,7 +222,7 @@ final class TicketSidebar extends Component
 - **SHOULD** refresh via a dispatched event + `#[On(...)]` listener so the embedded component re-reads after the form saves (`afterSave()` → `$this->dispatch('ticket-sidebar-refresh')`).
 - **MUST** back status/badge rendering with `HasColor`/`HasLabel` enums so the sidebar and the resource table share one source of truth (hub → "Enums for status / type / category").
 - **SHOULD** add `->key('...')` when embedding multiple instances of the same component, and `->lazyLoaded()` for an expensive component so the page paints first.
-- The component's Blade view still follows the hub's Blade ladder — use `<x-filament::section>`, `<x-filament::button>`, and Filament/Tailwind classes (with `dark:` variants) so it matches the panel; reserve hand-rolled markup for the bespoke part.
+- The component's Blade view follows `resources/views/filament/CLAUDE.md` — use `<x-filament::section>`, `<x-filament::button>`, and Filament/Tailwind classes (with `dark:` variants) so it matches the panel; reserve hand-rolled markup for the bespoke part.
 
 ### Authorize every request, not only `mount()`
 

@@ -4,6 +4,16 @@
 
 > Resource-bound pages live under `app/Filament/Resources/{Models}/Pages/`; their rules are in `app/Filament/Resources/Pages/CLAUDE.md`.
 
+## Checklist
+
+The rules most tasks here need, each with the section that explains it. Read this list first; read a section in full only when your task touches it.
+
+- **MUST** override `canAccess()`, and authorize every mutating method and header action again ("Rules", "Form inside a page", "Header / footer actions").
+- **MUST** delegate non-trivial logic to an `app/Actions/` class ("Rules").
+- **MUST** keep the page Blade thin: render a schema, form or widgets ("View").
+- **MUST** declare a navigation icon and group for sidebar pages ("Rules").
+- **MUST NOT** poll faster than 10s in production ("Polling / live updates").
+
 ## Where they live
 
 ```
@@ -144,7 +154,7 @@ final class ImportProducts extends Page
 
 - **MUST** keep the page Blade thin — render `{{ $this->form }}`, a schema, or `<x-filament-widgets::widgets />`, not bespoke markup. Build the page body from a Schema of built-in **components + prime components** (`Text`/`Icon`/`Image`/`UnorderedList`) rather than hand-written HTML. See the hub's "Prefer built-in components over custom Blade" ladder.
 - **SHOULD** reserve custom Blade in the page body for non-Filament layouts; even then, wrap content in `<x-filament::section>` so it stays themed.
-- **PREFER**, for a custom *interactive* piece, embedding it as its own Livewire component — `@livewire(MyWidget::class, [...])` in the page Blade, or `Livewire::make(MyWidget::class)` inside a page schema — over hand-coding the whole page's interactivity. As on resource pages, build only the custom piece: see `app/Filament/Resources/Pages/CLAUDE.md` → "Custom page content" and the hub → "Prefer embedding a Livewire component over a custom page".
+- **PREFER**, for a custom *interactive* piece, embedding it as its own Livewire component — `@livewire(MyWidget::class, [...])` in the page Blade, or `Livewire::make(MyWidget::class)` inside a page schema — over hand-coding the whole page's interactivity. As on resource pages, build only the custom piece: see `app/Filament/Resources/Pages/CLAUDE.md` → "Custom page content" and the hub → "Prefer built-in components over custom Blade".
 - **MUST** give a Livewire component embedded inside the page's `<form>` a `<div>` root, not a `<form>`. The HTML parser drops a nested form tag, and the component's `wire:id` goes with it.
 - **MUST** add `x-on:keydown.enter.prevent` to a plain text or search input rendered inside the page's `<form>` (a custom Blade field, a picker's filter box). Without it, Enter in that input submits the whole form.
 

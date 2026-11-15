@@ -10,6 +10,19 @@ paths:
 
 > Do **NOT** confuse with `app/Actions/` (business-logic classes — see `laravel-agent-rules`). A Filament Action **calls** a business Action; it doesn't replace it.
 
+## Checklist
+
+The rules most tasks here need, each with the section that explains it. Read this list first; read a section in full only when your task touches it.
+
+- **MUST** delegate the work to an `app/Actions/` class; the Filament action is glue ("Rules").
+- **MUST** `->authorize('ability')` every custom action, inside `setUp()` when the action is extracted ("Authorization").
+- **MUST** split who from when: the permission in `->authorize()`, the state precondition enforced by the business action under its lock. `->visible()` only decides what is offered ("Authorization").
+- **MUST** `->requiresConfirmation()` on destructive actions, and validate modal input in `->schema([...])`, not inside `->action()` ("Rules", "Form inside an action").
+- **MUST** authorize bulk actions explicitly and chunk work over 1k rows ("Bulk actions").
+- **MUST** `->send()` every notification; mark recoverable errors `->persistent()` ("Notifications").
+- **MUST** keep multi-write mutations atomic; on an expected failure notify and halt with rollback ("Notifications" → "Inside an Action").
+- **MUST** extract an action used on two or more surfaces ("Reusable across surfaces").
+
 ## Where they live
 
 Filament Actions may remain inline when used once and small. **MUST** extract shared behavior when the same action appears in ≥2 surfaces; see "Reusable across surfaces".
@@ -71,12 +84,41 @@ What Filament checks, and what it does not:
 So:
 
 - **MUST** put `->authorize(...)` inside `setUp()` of an extracted action, so the check travels to every page, table and relation manager that mounts it. An action reachable from a second, weaker-gated page is the usual hole.
-- **MUST** put state preconditions on the action too, not only the permission. If the policy does not know the record is closed or converted, add it to the authorization callback (or `->visible()` on the same action):
+- **MUST** split *who* from *when*. The permission goes in `->authorize()`. The state precondition ("only while the order is open") **MUST** be enforced by the business action that executes, re-read under its lock, because the state can change between the page render and the click. A condition in `->visible()` only decides whether the action is *offered*.
+- **MUST NOT** put a state precondition in `->authorize()`. On submit Filament re-evaluates `->visible()` and `->authorize()` against a freshly loaded record and silently drops the call when either fails (`isDisabled()` includes `isHidden()`). A user whose record changed while the modal was open gets no feedback at all, and a state check in `authorize()` reads as a permission denial.
+- When the user must be told that a stale action failed, keep the action visible while it is mounted for that record, and let the business action refuse with a danger notification. Do not snapshot rendered rows or read Filament's internal table caches to achieve this:
 
   ```php
-  ->authorize(fn (Order $record): bool => $record->isOpen()
-      && (auth()->user()?->can('refund', $record) ?? false))
+  Action::make('refund')
+      ->authorize('refund')                                     // who: policy only
+      ->visible(fn (Order $record, Action $action): bool =>      // when: offer only where it applies,
+          $record->isOpen() || static::isMountedFor($action, $record)) // but let an open modal submit
+      ->requiresConfirmation()
+      ->action(function (Order $record): void {
+          try {
+              app(RefundOrderAction::class)->handle($record);     // locks, re-reads, throws if no longer open
+          } catch (OrderNotRefundable $e) {
+              Notification::make()->danger()->title('Refund Failed')->body($e->getMessage())->send();
+
+              return;
+          }
+          Notification::make()->success()->title('Refunded')->send();
+      });
+
+  private static function isMountedFor(Action $action, Model $record): bool
+  {
+      foreach ($action->getLivewire()?->mountedActions ?? [] as $mounted) {
+          if (($mounted['name'] ?? null) === $action->getName()
+              && (string) ($mounted['context']['recordKey'] ?? '') === (string) $record->getKey()) {
+              return true;
+          }
+      }
+
+      return false;
+  }
   ```
+
+  A crafted request can mount the action on any record it can load; that is safe because the business action, not the visibility callback, is the guard. When no failure message is needed, `->visible($record->isOpen())` alone is enough: the stale call is dropped and the business action's check still holds.
 
 - **MUST** check the destination's ability when the action redirects after success (create, then open the edit page): gate the action on it, or redirect users who lack it somewhere they may go.
 - **MUST** require the `view` ability of every model an action lists, previews or lets the user pick, not only the ability on the record it is attached to. A picker opened from an order that lists documents needs the document `view` check before it opens.

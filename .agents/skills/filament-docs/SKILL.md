@@ -44,6 +44,7 @@ Read only the files relevant to the task:
 | Widgets | `app/Filament/Widgets/CLAUDE.md` |
 | Panel providers and discovery | `app/Providers/Filament/CLAUDE.md` |
 | Theme CSS | `resources/css/filament/CLAUDE.md` |
+| Blade views | `resources/views/filament/CLAUDE.md` |
 | Tests | `tests/Feature/Filament/CLAUDE.md` |
 
 Always read the hub (`app/Filament/CLAUDE.md`) for non-trivial work: it holds

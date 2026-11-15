@@ -2,6 +2,17 @@
 
 **Purpose:** Pest + Livewire feature tests for Filament Resources, Pages, Widgets, and Relation Managers, using the current Filament panel builder APIs.
 
+## Checklist
+
+The rules most tasks here need, each with the section that explains it. Read this list first; read a section in full only when your task touches it.
+
+- **MUST** use `RefreshDatabase`, act as a user that passes `canAccessPanel()`, select the panel, and set the tenant before `Filament::bootCurrentPanel()` ("Setup").
+- **MUST** enable `Model::preventLazyLoading()` in the test bootstrap ("Panel, tenant, and lazy-loading context").
+- **MUST** ship a render test per page and assert `assertHasNoFormErrors()` on every successful save ("Page rendering", "Form assertions").
+- **MUST** test every custom action for visibility, the happy path, and refusal for a user without the ability and for a record in the wrong state, including a crafted `mountAction()` call ("Authorization", "Action assertions").
+- **MUST** cover another tenant's records being inaccessible ("Panel, tenant, and lazy-loading context").
+- **MUST** test stale state where the spec cares: an action submitted after its record changed, an edit saved after another surface changed the row ("Action assertions", "Coverage checklist").
+
 ## Where they live
 
 Mirror the panel tree:
@@ -231,7 +242,31 @@ it('bulk-archives selected orders', function () {
         expect($order->refresh()->archived_at)->not->toBeNull();
     }
 });
+
+it('reports an approve whose order changed while the modal was open', function () {
+    $order = Order::factory()->create(['status' => 'pending']);
+
+    $page = livewire(ListOrders::class)
+        ->mountAction(TestAction::make('approve')->table($order)); // modal open, nothing run yet
+
+    $order->update(['status' => 'cancelled']);                    // another user acts meanwhile
+
+    $page->call('callMountedAction')->assertNotified();
+    expect($order->refresh()->status)->toBe(OrderStatus::Cancelled);
+});
+
+it('refuses an edit that would overwrite a concurrent stock change', function () {
+    $item = InventoryItem::factory()->create(['quantity_on_hand' => 5]);
+    $page = livewire(EditInventoryItem::class, ['record' => $item->getRouteKey()]);
+
+    $item->update(['quantity_on_hand' => 8]);                      // an adjust lands while the form is open
+
+    $page->fillForm(['quantity_on_hand' => 6])->call('save')->assertHasFormErrors(['quantity_on_hand']);
+    expect($item->refresh()->quantity_on_hand)->toBe(8);
+});
 ```
+
+`mountAction()` opens the modal without running the action and, unlike `callAction()`, does not assert visibility first. Use it with `->call('callMountedAction')` for the stale-state case and for crafted calls on records the action is hidden for. An action without a modal (no `requiresConfirmation()`, no schema) runs as soon as it mounts, so the stale-state case applies only to modal actions.
 
 ## Notification assertions
 
@@ -347,11 +382,14 @@ For every Resource, **MUST** cover:
 - [ ] Edit hydrates from record
 - [ ] Edit save persists
 - [ ] Every custom action (visibility + happy path + refused without the ability)
+- [ ] Every state-gated action: a crafted call on a record in the wrong state changes nothing; when the spec asks for feedback, mount it, change the record, submit, and `assertNotified()`
+- [ ] Every Edit-form column another surface also changes: open the page, change the row behind it, save, and assert a form error and the other surface's value kept
 - [ ] Every filtered Select / CheckboxList: edit saves with a stored value that is no longer offered
 - [ ] Page-level forbid for unauthorized user
 
 ## Rules
 
+- **SHOULD** delete the skeleton `tests/Feature/ExampleTest.php` and `tests/Unit/ExampleTest.php` once real tests exist: they assert nothing about the app.
 - **MUST** use Pest's `it(...)` form, not `test(...)` — keeps assertions readable as English sentences.
 - **MUST** factory-create test data — never insert via raw `Model::create([...])`.
 - **AVOID** asserting on rendered HTML strings except for known-stable text (`assertSee('Total')`); markup is volatile across Filament minor versions.

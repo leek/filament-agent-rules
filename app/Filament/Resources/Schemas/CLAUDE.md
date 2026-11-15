@@ -8,7 +8,19 @@ paths:
 
 **Purpose:** declarative component trees for editing (Form) and viewing (Infolist) records. Both share the same `Schema` base class.
 
-> **Read first:** the schema model — one `Filament\Schemas\Schema` container, four component categories (fields / entries / layout / prime), the `->components()` vs nested `->schema()` seam, and infinite child-schema nesting — applies everywhere a schema appears (forms, infolists, page `content()`, action modals, wizards). It is documented in the hub: `app/Filament/CLAUDE.md` → "How schemas work — the component tree".
+## Checklist
+
+The rules most tasks here need, each with the section that explains it. Read this list first; read a section in full only when your task touches it.
+
+- **MUST** give the top-level schema `->components([...])` and layout children `->schema([...])`, and pick each component's namespace by category (hub → "How schemas work — the component tree").
+- **MUST** extract `{Model}Form` / `{Model}Infolist` with a static `configure()` ("Shape").
+- **MUST** mark required columns `->required()`, fit `->maxLength()` to the column, and pick the component for the data: a select for finite sets, pickers for dates, a textarea for prose ("Rules", "Field affordances").
+- **MUST** handle the unique-constraint violation at write time as well as declaring `->unique()` ("Rules").
+- **MUST** gate `->dehydrated(fn ...)` on a hidden field that must not persist ("Conditional visibility").
+- **MUST** build a Select's options and its accepted values from one eligibility query (tenant, view access, business rule), and keep an edit's stored value valid ("Select and CheckboxList gotchas").
+- **MUST** constrain every `FileUpload` (types, size, disk, visibility) ("FileUpload — always constrain").
+- **MUST** size fields to their content and group related fields on one row ("Layout").
+- **MUST** use `->live(onBlur: true)` on text triggers and narrow what re-renders ("State callbacks", "Reactivity & rendering").
 
 ## Where they live
 

@@ -8,6 +8,18 @@ paths:
 
 **Purpose:** CRUD UI for a single Eloquent model inside a Filament panel.
 
+## Checklist
+
+The rules most tasks here need, each with the section that explains it. Read this list first; read a section in full only when your task touches it.
+
+- **MUST** name it `{Model}Resource` in `Resources/{Models}/`, and extract form, table and infolist into `Schemas/` and `Tables/` classes ("Code Quality — extract everything").
+- **MUST** declare `$recordTitleAttribute`.
+- **MUST NOT** put business logic in the Resource; funnel it through `app/Actions/`.
+- **MUST** eager-load every relation a table column or global search reads, and compute per-row aggregates in the query (`withSum`, `withCount`), not in a column callback ("Eager loading — `getEloquentQuery()`").
+- **MUST** authorize through the model policy; when the Resource decides an ability itself, override `get…AuthorizationResponse()`, not only `can…()` ("Authorization").
+- **MUST** pair a hidden sensitive field with `->dehydrated(fn () => ...)`.
+- **MUST** cache navigation badge queries on large tables, with panel and tenant in the key.
+
 ## Naming
 
 - **MUST** be `{Model}Resource` (e.g. `UserResource`, `OrderResource`).
@@ -142,6 +154,7 @@ public static function getEloquentQuery(): Builder
 
 - **MUST** eager-load every relation referenced in table columns (`->state(fn ($record) => $record->customer->name)`).
 - **MUST NOT** rely on lazy loading inside a table — Filament renders 25+ rows per page; N+1 is immediate.
+- **MUST** compute per-row aggregates (a sum of active holds, a count, a latest date) in this query with `withSum()` / `withCount()` / a subselect. A column `->state(fn ($record) => $record->things()->sum(...))` is a query per row, and `preventLazyLoading()` does not catch it. Policy checks run per row too: memoize any lookup they make, such as the user's role in the current tenant.
 
 ## Global search
 

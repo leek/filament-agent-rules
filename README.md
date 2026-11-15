@@ -110,7 +110,7 @@ paths:
 
 Agents that read `CLAUDE.md` / `AGENTS.md` directly see this frontmatter block as inert text and ignore it.
 
-**Eight** rule types are path-scoped and symlinked under `.claude/rules/`:
+**Nine** rule types are path-scoped and symlinked under `.claude/rules/`:
 
 | Symlink | Canonical file |
 | ------- | -------------- |
@@ -122,6 +122,7 @@ Agents that read `CLAUDE.md` / `AGENTS.md` directly see this frontmatter block a
 | `filament-tables.md` | `app/Filament/Resources/Tables/CLAUDE.md` |
 | `filament-widgets.md` | `app/Filament/Widgets/CLAUDE.md` |
 | `filament-providers.md` | `app/Providers/Filament/CLAUDE.md` |
+| `filament-blade.md` | `resources/views/filament/CLAUDE.md` |
 
 The remaining files are reached through directory inheritance where applicable and the hub's routing table. Custom pages and clusters can live below panel-specific directories; their canonical skeleton rule files are not automatically inherited there.
 
@@ -141,6 +142,7 @@ The remaining files are reached through directory inheritance where applicable a
 | `app/Filament/Actions/CLAUDE.md`                  | Action plumbing: forms inside actions, modals, bulk, requires-confirmation |
 | `app/Providers/Filament/CLAUDE.md`                | PanelProvider: discovery, middleware, multi-panel, tenancy                 |
 | `resources/css/filament/CLAUDE.md`                | Theme CSS: Vite registration, source scanning, tokens, build, selector cost |
+| `resources/views/filament/CLAUDE.md`              | Blade views: the built-in-first ladder, wrappers, accessible controls      |
 | `tests/Feature/Filament/CLAUDE.md`                | Pest + Livewire tests: pages, forms, tables, actions, authorization        |
 
 ## Companion

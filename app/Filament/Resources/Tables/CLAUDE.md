@@ -8,6 +8,18 @@ paths:
 
 **Purpose:** the index view of a Resource (or a relation manager / table widget). Declarative columns + filters + actions.
 
+## Checklist
+
+The rules most tasks here need, each with the section that explains it. Read this list first; read a section in full only when your task touches it.
+
+- **MUST** extract `{Models}Table` with a static `configure()` ("Naming", "Rules").
+- **MUST** eager-load relations columns read, and never query per row from a column callback or view; aggregate in the table query ("Rules", "Custom columns").
+- **MUST** make only indexed columns `->searchable()` / `->sortable()`, and index filtered columns ("Rules", "Filters").
+- **MUST** `->authorize()` custom row actions; `->visible()` is for state only, enforced again in the business action ("Row actions").
+- **MUST** authorize bulk actions and inline-editable columns explicitly ("Bulk actions", "Rules").
+- **MUST** use `TextColumn::make(...)->badge()`, not `BadgeColumn` ("Rules").
+- **MUST** set a full empty state: heading, description and icon ("Empty state").
+
 ## Where they live
 
 Per-resource, under `app/Filament/Resources/{Models}/Tables/`:
@@ -275,15 +287,16 @@ Filter::make('created_at')
         ->icon(Heroicon::Check)
         ->color('success')
         ->requiresConfirmation()
-        ->visible(fn (Order $record) => $record->status === OrderStatus::Pending)
-        ->action(fn (Order $record) => app(ApproveOrderAction::class)->handle($record)),
+        ->authorize('approve')                                                    // who
+        ->visible(fn (Order $record) => $record->status === OrderStatus::Pending) // offered when
+        ->action(fn (Order $record) => app(ApproveOrderAction::class)->handle($record)), // enforces state under lock
 ])
 ```
 
 Use `->recordActions(...)` for per-row actions.
 
 - **MUST** call `->requiresConfirmation()` on any destructive action.
-- **MUST** use `->visible(...)` / `->hidden(...)` to hide actions the policy denies — keep UI honest.
+- **MUST** authorize custom row actions with `->authorize(...)`, which both hides the action and refuses a crafted call. Use `->visible(...)` / `->hidden(...)` for state only, and enforce that state again in the business action; see `app/Filament/Actions/CLAUDE.md` → "Authorization".
 - **PREFER** wrapping >2 row actions in `ActionGroup::make([...])->dropdown()` — otherwise the table actions column eats half the row width on dense lists.
 
 ## Header actions

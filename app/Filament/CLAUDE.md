@@ -19,7 +19,10 @@ Resolve these paths from the project root. Use the installed agent filename (`AG
 | Clusters | `app/Filament/Clusters/CLAUDE.md` |
 | Panel providers | `app/Providers/Filament/CLAUDE.md` |
 | Theme CSS | `resources/css/filament/CLAUDE.md` |
+| Blade views for the panel | `resources/views/filament/CLAUDE.md` |
 | Filament tests | `tests/Feature/Filament/CLAUDE.md` |
+
+Each routed file opens with a **Checklist** of its load-bearing rules, each naming its section. Read the checklist first, then the sections your task touches.
 
 Targets Filament 5.9.0 or later in 5.x, verified against that released baseline and current official source. **MUST** check installed versions before applying these examples. APIs include extracted resource `Schemas/` and `Tables/` classes, `Filament\Actions\*`, table `recordActions()` / `toolbarActions()`, action modal `schema()`, `TextColumn::badge()`, and layout components under `Filament\Schemas\Components\*`.
 
@@ -80,9 +83,7 @@ Filament leans heavily on fluent builders inside static methods (`form(Schema $s
 
 ## How schemas work — the component tree
 
-Forms, infolists, page bodies, action modals, and wizard steps all compose a `Filament\Schemas\Schema` component tree. Most "custom layout" work should stay inside that tree.
-
-Use the right component category:
+Forms, infolists, page bodies, action modals, and wizard steps all compose a `Filament\Schemas\Schema` component tree; keep custom layout inside it. Pick the namespace by category:
 
 | Category | Namespace | Role | Examples |
 | -------- | --------- | ---- | -------- |
@@ -106,119 +107,38 @@ $schema->components([                      // top-level Schema → ->components(
 
 - **MUST** mind this API seam: the top-level **`Schema`** takes **`->components([...])`**; a **layout component** nests its children via **`->schema([...])`**. `Flex`, `Group`, and `Wizard` take their children as a constructor array. `->components()` on a `Section` or `->schema()` on the top-level schema is a common mistake.
 - **MUST** choose a component's namespace by category, not by guess: a field is `Filament\Forms\Components\TextInput`, an entry is `Filament\Infolists\Components\TextEntry`, but the `Section`/`Grid`/`Tabs` wrapping either is `Filament\Schemas\Components\*`.
-- **PREFER** expressing any "custom layout" as nested layout + prime components in a schema before reaching for Blade — this component tree backs the "Prefer built-in components over custom Blade" ladder below.
 
 ## Prefer built-in components over custom Blade
 
-Custom Blade skips Filament theming, dark mode, spacing, and state handling. Before writing `->view(...)`, a `ViewField`/`ViewEntry`, a custom-view schema component, or a Blade-backed `Widget`, walk this ladder:
+Custom Blade skips Filament theming, dark mode, spacing, and state handling. **MUST** reach for, in order: a built-in field / column / entry; a prime component (`Text`, `Icon`, `Image`, `UnorderedList`); a `Callout`; a composition of those inside `Section` / `Grid` / `Flex`; a custom component class returning a configured built-in. Only then write Blade, and before writing any `.blade.php` for the panel **MUST** read `resources/views/filament/CLAUDE.md`.
 
-1. **A built-in field / column / entry** — `TextInput`, `Select`, `TextColumn`, `TextEntry`, `IconColumn`, `ImageEntry`, … for record data.
-2. **A prime component** — `Text`, `Icon`, `Image`, `UnorderedList` (`Filament\Schemas\Components\*`) for *arbitrary* content (headings, notes, computed text, logos, bullet lists) in any schema. See `app/Filament/Resources/Schemas/CLAUDE.md` → "Prime components".
-3. **A `Callout`** — for an info / warning / error block (Schemas → "Callout").
-4. **A composition of the above** inside `Section` / `Grid` / `Fieldset` / `Flex` — most "custom" layouts are just built-ins on a grid.
-5. **A custom component class** that returns a configured built-in (the `make()` pattern) — for reusable heavy config.
-6. **Custom Blade** (`->view(...)`, `ViewField`, `ViewEntry`, `ViewColumn`, a `Widget` view) — only when the markup is bespoke (a third-party embed, a hand-built chart, a non-Filament layout). For table cells, `ViewColumn` and full custom column classes are the sanctioned hatch — see `app/Filament/Resources/Tables/CLAUDE.md` → "Custom columns".
-
-- **MUST** exhaust rungs 1–5 before dropping to Blade.
-- **MUST**, at rung 6, wrap the markup in Filament's wrappers (`<x-filament::section>`, `<x-filament-widgets::widget>`, `<x-filament-panels::page>`) so theming and dark mode still apply.
-- **PREFER** extracting a reusable custom **component class** (rung 5) over copying a Blade partial — it composes with a schema like any other component.
-
-### When you do write Blade
-
-- **MUST** put `wire:click` / `x-on:click` / `@click` on a `<button type="button">` (or `<x-filament::button>`, or an `<a href>` for navigation). A `<div>`, `<span>` or `<tr>` takes no keyboard focus, so the control is mouse-only. If the element cannot be a button, it needs all three of `role="button"`, `tabindex="0"` and a key handler (`x-on:keydown.enter` + `x-on:keydown.space.prevent`).
-- **MUST NOT** read `$loop` in a partial that opens its own `@foreach` to mean the including loop: inside the inner loop `$loop->index` is the inner index. Capture the outer value first and pass it in.
-
-  ```blade
-  @foreach ($steps as $step)
-      @include('filament.partials.step-menu', ['position' => $loop->index])
-  @endforeach
-  ```
-
-- **MUST** give every `x-sortable-item` an `x-sortable-handle`, on the item itself or on an element inside it. Filament's `x-sortable` directive starts a drag only from `[x-sortable-handle]`, so a list without one cannot be reordered. When the row holds buttons, links or inputs, put the handle on a dedicated grip rather than the row, or every click on a control starts a drag.
-- **MUST NOT** put `@js(...)` or any other Blade directive inside a component tag's attribute (`<x-filament::button wire:click="tick(@js($key))">`). Blade does not compile directives there: the browser receives the literal `@js($key)` and the click throws `Livewire Expression Error`. Write `wire:click="tick({{ Js::from($key) }})"` (`Illuminate\Support\Js`); `@js` works only on a plain HTML element. A test that calls the method directly still passes, so assert the rendered attribute or click the control in a browser.
-- **MUST** give a hand-built scrolling table's `overflow-x-auto` wrapper `relative`. Screen-reader-only text (`sr-only`) is absolutely positioned, so inside a non-positioned scroll box it escapes the box and the whole page scrolls sideways on a phone.
-- **MUST** make a link or button repeated per row or per cell say which row it acts on in its accessible name ("Open March 2026 for Dana Lee", by `aria-label` or `sr-only` text), and mark the grid up as a real `<table>` with `<th scope>` row and column headers. Twenty links all named "Open" cannot be told apart by a screen reader.
-- A hand-built upload control must honour the form contract in `app/Filament/Resources/Schemas/CLAUDE.md` → "Custom upload fields".
-
-## Prefer embedding a Livewire component over a custom page
-
-The ladder above covers a single component; the same applies at the **page** level. When a page needs something Filament can't build out of the box, don't replace the standard Resource page with a fully custom Livewire page. Usually **only one or two pieces are custom** — a real-time sidebar, a bespoke chart, a non-standard widget. Build *those* as Livewire components and embed them; keep what Filament gives you (form, table, relation managers, save pipeline, validation, authorization, notifications).
-
-- **MUST** prefer embedding `Filament\Schemas\Components\Livewire::make(Component::class, [...])` into a page's `content()` schema (or any form/infolist schema) over converting the page to bespoke Blade/Livewire. A custom component in a standard page beats a custom page reimplementing the form.
-- **MUST** still delegate the embedded component's business logic to an `app/Actions/` class — it's a UI boundary, like a Filament Action.
-- See `app/Filament/Resources/Pages/CLAUDE.md` → "Custom page content" for the `content()` + `Livewire::make()` mechanics, and `app/Filament/Pages/CLAUDE.md` for standalone pages.
+At the page level the same holds: embed a `Filament\Schemas\Components\Livewire` component in a standard page's `content()` instead of rebuilding the page. See `app/Filament/Resources/Pages/CLAUDE.md` → "Custom page content".
 
 ## Enums for status / type / category
 
-**PREFER** `Filament\Support\Icons\Heroicon` enum cases for PHP icon configuration, matching the examples. String icon identifiers remain valid for custom icon sets; verify each identifier against the installed package. Use `{Verb}{Noun}Action` names for business Actions, distinct from UI Action class names.
-
-Back every status, type, or category column with a PHP enum that implements the Filament presentation contracts. One enum drives the form select, the table badge, the infolist entry, and the policy guard — no parallel `match` blocks to keep in sync.
+**MUST** back every status, type, or category column with a PHP enum that implements the Filament presentation contracts in `Filament\Support\Contracts\*`: `HasLabel` (option and badge labels), `HasColor` (badge colour, semantic names only: `success` / `warning` / `danger` / `info` / `primary` / `gray`), `HasIcon` (badge and icon columns, PREFER `Heroicon` cases), `HasDescription` (radio / checkbox option text). Cast the column to the enum; Filament then renders the select options, table badge and infolist entry from it with no `->options([...])`, `->color(fn ...)` or `->formatStateUsing()`:
 
 ```php
-use Filament\Support\Contracts\{HasColor, HasIcon, HasLabel};
-use Filament\Support\Icons\Heroicon;
-
-enum OrderStatus: string implements HasLabel, HasColor, HasIcon
+enum OrderStatus: string implements HasLabel, HasColor
 {
     case Pending = 'pending';
-    case Approved = 'approved';
     case Paid = 'paid';
-    case Cancelled = 'cancelled';
 
-    public function getLabel(): string
-    {
-        return ucfirst($this->value);
-    }
+    public function getLabel(): string { return ucfirst($this->value); }
 
     public function getColor(): string
     {
-        return match ($this) {
-            self::Pending => 'warning',
-            self::Approved, self::Paid => 'success',
-            self::Cancelled => 'danger',
-        };
-    }
-
-    public function getIcon(): string|Heroicon
-    {
-        return match ($this) {
-            self::Pending => Heroicon::Clock,
-            self::Approved, self::Paid => Heroicon::CheckCircle,
-            self::Cancelled => Heroicon::XCircle,
-        };
+        return match ($this) { self::Pending => 'warning', self::Paid => 'success' };
     }
 }
+
+Select::make('status')->options(OrderStatus::class);   // form
+TextColumn::make('status')->badge();                   // table: colour and label inferred
 ```
 
-Then on the Eloquent model:
-
-```php
-protected $casts = ['status' => OrderStatus::class];
-```
-
-Resource surfaces auto-pick up the labels/colors/icons:
-
-```php
-Select::make('status')->options(OrderStatus::class);                 // form
-TextColumn::make('status')->badge();                                  // table — colour/icon inferred
-IconEntry::make('status');                                            // infolist
-```
-
-### The four presentation contracts
-
-All live in `Filament\Support\Contracts\*`. Implement only the ones an enum needs and combine them in one `implements` list. Filament reads them **automatically** wherever the enum is a field/column/entry's value — no `->options([...])` array, `->color(fn ...)`, `->icon(fn ...)`, or `->formatStateUsing()` required.
-
-| Contract | Method (interface return type) | Auto-renders in |
-| -------- | ------------------------------ | --------------- |
-| `HasLabel` | `getLabel(): string\|Htmlable\|null` | `Select` / `Radio` / `CheckboxList` / `ToggleButtons` option labels; `TextColumn` / `SelectColumn` / `SelectFilter` + table group titles; `TextEntry` |
-| `HasColor` | `getColor(): string\|array\|null` | `TextColumn` / `TextEntry` (best with `->badge()`); `ToggleButtons` |
-| `HasIcon` | `getIcon(): string\|BackedEnum\|Htmlable\|null` | `TextColumn` / `TextEntry` (with `->badge()`); `IconColumn` / `IconEntry`; `ToggleButtons` |
-| `HasDescription` | `getDescription(): string\|Htmlable\|null` | `Radio` / `CheckboxList` option descriptions |
-
-- **SHOULD** implement `HasDescription` when `Radio` / `CheckboxList` enum options need explanatory text; `Radio::make('visibility')->options(Visibility::class)` renders labels and descriptions automatically.
-- **MUST** keep enum case names PascalCase and backed values snake_case — backed values become DB column values; casing matters for migrations and search.
-- **MUST** use semantic colors (`success`/`warning`/`danger`/`info`/`primary`/`gray`) — Filament maps them through the theme, so palette changes propagate without touching enums.
-- **PREFER** an enum over a `string` column the moment a state machine appears (more than 2 values, or any forbidden transition).
+- **MUST** keep enum case names PascalCase and backed values snake_case: backed values are stored in the database.
+- **PREFER** an enum over a `string` column the moment a state machine appears (more than 2 values, or any forbidden transition). Put transition checks on the enum or model, and call them from the business action.
+- **PREFER** `Filament\Support\Icons\Heroicon` cases for PHP icon configuration; verify string icon identifiers against the installed package. Name business Actions `{Verb}{Noun}Action`, distinct from UI Action classes.
 
 ## Authorization
 
@@ -243,7 +163,7 @@ Filament does **not** lean on Eloquent's `$fillable`/`$guarded` for the form sav
 Filament auto-checks model policies only for **standard CRUD**. Anything you add — custom actions, custom pages, custom Livewire components, inline-editable columns, API endpoints — **is not authorized automatically.**
 
 - **MUST** authorize custom surfaces yourself: `->authorize(...)` on an action, `canAccess()` on a page, an explicit policy call in a Livewire method. See "Authorization" above, plus the per-surface notes (Tables → bulk actions + inline columns, Actions → `authorize`, Pages → `canAccess`).
-- **Hidden is not authorized.** A condition hides or blocks only the object it is declared on. Hiding the trigger (a Blade `@if`, a sibling action, another page's button) leaves the action, Livewire method or route callable by anyone who can load the component. **MUST** put the permission **and** any state precondition ("only while the order is open") on the thing that executes. See `app/Filament/Actions/CLAUDE.md` → "Authorization".
+- **Hidden is not authorized.** A condition hides or blocks only the object it is declared on. Hiding the trigger (a Blade `@if`, a sibling action, another page's button) leaves the action, Livewire method or route callable by anyone who can load the component. **MUST** put the permission on the thing that executes (`->authorize()` on the action, `canAccess()` on the page), and enforce any state precondition ("only while the order is open") inside the business action it calls, re-read under its lock. `->visible()` decides what is offered, not what is allowed. See `app/Filament/Actions/CLAUDE.md` → "Authorization".
 - **MUST** gate a link or redirect to another record or page on the **target's** own check, and render plain text (or redirect elsewhere) when it fails. Access to the current page says nothing about the target, so the link 403s. Use `OrderResource::canView($order)` / `canEdit($order)`, a resource page's `EditOrder::canAccess(['record' => $order])`, a standalone page's `canAccess()`, or a relation manager's `canViewForRecord($ownerRecord, $pageClass)` before linking to `?relation=...`.
 
   ```php
